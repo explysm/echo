@@ -44,7 +44,13 @@ jobs:
           EXPO_PUBLIC_BASE_URL: /echo
 
       - name: Create echo.js for bundle update check
-        run: cp dist/_expo/static/js/web/index-*.js dist/echo.js
+        run: |
+          JS_PATH=$(grep -oE '_expo/static/js/web/[^"]+\.js' dist/index.html | head -n 1)
+          if [ -n "$JS_PATH" ]; then
+            cp "dist/$JS_PATH" dist/echo.js
+          else
+            find dist/_expo/static/js/web -name "*.js" -exec cp {} dist/echo.js \;
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
