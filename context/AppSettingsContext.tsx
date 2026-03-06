@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme as useNativeColorScheme } from 'react-native';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/constants/Theme';
 
@@ -24,6 +25,8 @@ interface AppSettingsContextType {
   setSolverKey: (key: string) => void;
   useRemoteSolver: boolean;
   setUseRemoteSolver: (value: boolean) => void;
+  powBatchSize: number;
+  setPowBatchSize: (value: number) => void;
   colorScheme: 'light' | 'dark';
   isInitialized: boolean;
 }
@@ -38,6 +41,7 @@ const STORAGE_KEYS = {
   SOLVER_KEY: '@echo_settings_solver_key',
   USE_REMOTE_SOLVER: '@echo_settings_use_remote_solver',
   CUSTOM_THEME: '@echo_settings_custom_theme',
+  POW_BATCH_SIZE: '@echo_settings_pow_batch_size',
 };
 
 const AppSettingsContext = createContext<AppSettingsContextType | undefined>(undefined);
@@ -63,6 +67,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [solverUrl, setSolverUrlState] = useState(DEFAULT_SOLVER_URL);
   const [solverKey, setSolverKeyState] = useState(DEFAULT_SOLVER_KEY);
   const [useRemoteSolver, setUseRemoteSolverState] = useState(true);
+  const [powBatchSize, setPowBatchSizeState] = useState(Platform.OS === 'web' ? 1000 : 50);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -76,7 +81,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           savedSolver, 
           savedKey,
           savedUseRemote,
-          savedCustomTheme
+          savedCustomTheme,
+          savedPowBatchSize
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
           AsyncStorage.getItem(STORAGE_KEYS.ACCENT),
@@ -87,6 +93,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           AsyncStorage.getItem(STORAGE_KEYS.SOLVER_KEY),
           AsyncStorage.getItem(STORAGE_KEYS.USE_REMOTE_SOLVER),
           AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_THEME),
+          AsyncStorage.getItem(STORAGE_KEYS.POW_BATCH_SIZE),
         ]);
 
         if (savedTheme) setThemeState(savedTheme as Theme);
@@ -100,6 +107,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         if (savedRewind) {
           const val = parseFloat(savedRewind);
           if (!isNaN(val)) setRewindAmountState(val);
+        }
+        if (savedPowBatchSize) {
+          const val = parseInt(savedPowBatchSize, 10);
+          if (!isNaN(val)) setPowBatchSizeState(val);
         }
       } catch (e) {
         console.error('Failed to load settings:', e);
@@ -156,6 +167,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     await AsyncStorage.setItem(STORAGE_KEYS.USE_REMOTE_SOLVER, value.toString());
   };
 
+  const setPowBatchSize = async (value: number) => {
+    setPowBatchSizeState(value);
+    await AsyncStorage.setItem(STORAGE_KEYS.POW_BATCH_SIZE, value.toString());
+  };
+
   const colorScheme = theme === 'system' ? systemColorScheme : theme;
 
   return (
@@ -179,6 +195,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         setSolverKey,
         useRemoteSolver,
         setUseRemoteSolver,
+        powBatchSize,
+        setPowBatchSize,
         colorScheme,
         isInitialized
       }}

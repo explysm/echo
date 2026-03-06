@@ -101,7 +101,8 @@ async function solveChallenge(
   prefix: string, 
   target: string, 
   onProgress?: (msg: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  batchSize: number = 50
 ): Promise<string> {
   let nonce = 0;
   const startTime = Date.now();
@@ -110,34 +111,43 @@ async function solveChallenge(
   while (true) {
     if (signal?.aborted) throw new Error('Solver aborted');
 
-    // Perform 10000 hashes per batch to significantly improve speed
-    for (let i = 0; i < 10000; i++) {
-      const hash = await Crypto.digestStringAsync(
+    // Parallelize hash requests to saturate the bridge/CPU
+    const batch = Array.from({ length: batchSize }, (_, i) => {
+      const currentNonce = nonce + i;
+      return Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
-        prefix + nonce
-      );
-      
-      if (hash < lowerTarget) {
+        prefix + currentNonce
+      ).then(hash => ({ hash, nonce: currentNonce }));
+    });
+
+    const results = await Promise.all(batch);
+    
+    for (const result of results) {
+      if (result.hash < lowerTarget) {
         const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`Solved at nonce ${nonce} in ${totalTime}s`);
-        await showProgressNotification('Echo Solver', `Solved at nonce ${nonce}!`, true);
-        return nonce.toString();
+        console.log(`Solved at nonce ${result.nonce} in ${totalTime}s`);
+        await showProgressNotification('Echo Solver', `Solved at nonce ${result.nonce}!`, true);
+        return result.nonce.toString();
       }
-      nonce++;
     }
+
+    nonce += batchSize;
     
-    const elapsedSecs = Math.floor((Date.now() - startTime) / 1000);
-    const hashesPerSec = Math.floor(nonce / elapsedSecs || 0);
-    const msg = `Solving PoW: nonce ${nonce} (${hashesPerSec} H/s)...`;
-    onProgress?.(msg);
-    
-    // Update notification every 100k nonces
-    if (nonce % 100000 === 0) {
-      await showProgressNotification('Echo Solver (Local)', msg);
+    // Update UI/Progress every 1000 nonces to keep overhead low
+    if (nonce % 1000 < batchSize) {
+      const elapsedSecs = (Date.now() - startTime) / 1000;
+      const hashesPerSec = Math.floor(nonce / elapsedSecs || 0);
+      const msg = `Solving PoW: nonce ${nonce} (${hashesPerSec} H/s)...`;
+      onProgress?.(msg);
+      
+      // Update notification every 100k nonces
+      if (nonce % 100000 < batchSize) {
+        await showProgressNotification('Echo Solver (Local)', msg);
+      }
+      
+      // Minimal delay to keep UI responsive
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
-    
-    // Minimal delay to keep UI responsive
-    await new Promise(resolve => setTimeout(resolve, 0));
   }
 }
 
@@ -150,8 +160,10 @@ async function fetchRemoteSolver(
   signal?: AbortSignal
 ): Promise<{ nonce: string; elapsed: number }> {
   return new Promise((resolve, reject) => {
+    // Ensure URL doesn't have trailing slash
+    const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${url}/solve`, true);
+    xhr.open('POST', `${cleanUrl}/solve`, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('x-solver-key', key || '');
 
@@ -164,40 +176,40 @@ async function fetchRemoteSolver(
 
     let lastIndex = 0;
 
-    xhr.onprogress = () => {
-      const newText = xhr.responseText.substring(lastIndex);
-      lastIndex = xhr.responseText.length;
+    const processText = (text: string) => {
+      const newText = text.substring(lastIndex);
+      if (!newText) return;
+      lastIndex = text.length;
       
       console.log('Solver Chunk:', newText);
       const lines = newText.split('\n');
       for (const line of lines) {
-        if (line.startsWith('PROGRESS:')) {
-          const msg = line.replace('PROGRESS:', '').trim();
+        const trimmed = line.trim();
+        if (trimmed.startsWith('PROGRESS:')) {
+          const msg = trimmed.replace('PROGRESS:', '').trim();
           onProgress?.(msg);
           showProgressNotification('Echo Solver (Remote)', msg);
-        } else if (line.startsWith('ERROR:')) {
-          reject(new Error(line.replace('ERROR:', '').trim()));
+        } else if (trimmed.startsWith('ERROR:')) {
+          reject(new Error(trimmed.replace('ERROR:', '').trim()));
+        } else if (trimmed.startsWith('RESULT:')) {
+          try {
+            const data = JSON.parse(trimmed.replace('RESULT:', '').trim());
+            resolve(data);
+          } catch (e) {
+            reject(new Error('Invalid JSON result from solver'));
+          }
         }
       }
     };
 
+    xhr.onprogress = () => processText(xhr.responseText);
+
     xhr.onload = () => {
+      // Process any remaining text that might not have been caught by onprogress
+      processText(xhr.responseText);
+      
       if (xhr.status >= 200 && xhr.status < 300) {
-        // Look for the RESULT line in the full response
-        const lines = xhr.responseText.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('RESULT:')) {
-            try {
-              const data = JSON.parse(line.replace('RESULT:', '').trim());
-              resolve(data);
-              return;
-            } catch (e) {
-              reject(new Error('Invalid JSON result from solver'));
-              return;
-            }
-          }
-        }
-        reject(new Error('Solver finished without a result line'));
+        // The promise might have already resolved in processText
       } else {
         try {
           const errorData = JSON.parse(xhr.responseText);
@@ -209,7 +221,7 @@ async function fetchRemoteSolver(
     };
 
     xhr.onerror = () => {
-      reject(new Error('Network error connecting to solver server'));
+      reject(new Error('Network error connecting to solver server. Check your Solver URL.'));
     };
 
     xhr.send(JSON.stringify({ prefix, target }));
@@ -217,17 +229,18 @@ async function fetchRemoteSolver(
 }
 
 export async function publishLyrics(
+  lrcText: string,
   trackName: string,
   artistName: string,
   albumName: string,
   duration: number,
-  lrcText: string,
   userAgent: string,
-  useRemoteSolver?: boolean,
+  useRemoteSolver: boolean,
   solverUrl?: string,
   solverKey?: string,
   onProgress?: (msg: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  powBatchSize: number = 50
 ) {
   const baseUrl = 'https://lrclib.net/api';
 
@@ -265,7 +278,7 @@ export async function publishLyrics(
       await showProgressNotification('Echo Solver (Remote)', `Solved in ${solverData.elapsed}s!`, true);
     } else {
       onProgress?.('Solving Proof-of-Work challenge (Local)...');
-      nonce = await solveChallenge(challenge.prefix, challenge.target, onProgress, signal);
+      nonce = await solveChallenge(challenge.prefix, challenge.target, onProgress, signal, powBatchSize);
     }
 
     onProgress?.('Publishing lyrics to database...');

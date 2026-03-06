@@ -2,6 +2,9 @@
 
 Echo is a minimalist, open-source lyric editor built with Expo and TypeScript. It is designed specifically for creating, syncing, and publishing time-tagged lyrics to [LRCLIB](https://lrclib.net/).
 
+> [!IMPORTANT]
+> **Early Access**: Echo is currently in early access. You may encounter bugs, and features are subject to change. Contributions and feedback are highly appreciated!
+
 ## Features
 
 -   **Audio Engine**: Load local MP3 files with full playback control (Play/Pause, Stop, Seek).

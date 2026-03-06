@@ -16,7 +16,9 @@ import Animated, {
   useAnimatedStyle, 
   withSpring, 
   withTiming,
-  useSharedValue 
+  useSharedValue,
+  interpolateColor,
+  useDerivedValue
 } from 'react-native-reanimated';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
@@ -66,26 +68,37 @@ const SyncLyricLine = memo(({
   onSeek: (time: number) => void,
   theme: any 
 }) => {
+  // Helper to ensure color is safe for concatenation
+  const getSafeColor = (color: any, fallback: string) => {
+    if (typeof color === 'string' && color.startsWith('#') && !color.includes('NaN')) {
+      return color.slice(0, 7);
+    }
+    return fallback;
+  };
+
+  const safeTint = getSafeColor(theme.tint, '#0f172a');
+  const safeBorder = getSafeColor(theme.border, '#e2e8f0');
+
   return (
     <Pressable 
       style={({ pressed }) => [
         styles.lyricLine, 
-        { borderBottomColor: theme.border },
-        pressed && { backgroundColor: theme.border },
-        isActive && { backgroundColor: theme.tint + '15' }
+        { borderBottomColor: safeBorder },
+        pressed && { backgroundColor: safeBorder },
+        isActive && { backgroundColor: safeTint + '15' }
       ]}
       onPress={() => onPress(line)}
     >
       <View style={styles.lyricLineInfo}>
         <TouchableOpacity onPress={() => onSeek(line.start)}>
-          <Text style={[styles.lyricTimestamp, { color: theme.tint }]}>
+          <Text style={[styles.lyricTimestamp, { color: safeTint }]}>
             [{formatTime(line.start)}]
           </Text>
         </TouchableOpacity>
         <Text style={[
           styles.lyricText,
-          { color: theme.text },
-          isActive && { fontWeight: 'bold', color: theme.tint }
+          { color: getSafeColor(theme.text, '#000000') },
+          isActive && { fontWeight: 'bold', color: safeTint }
         ]}>
           {line.text}
         </Text>
@@ -114,17 +127,42 @@ function AnimatedLyricLine({
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0.6);
+  const activeProgress = useSharedValue(isActive ? 1 : 0);
+
+  // Derive safe colors within the Reanimated runtime to prevent crashes from invalid theme values
+  const safeTint = useDerivedValue(() => {
+    const val = theme.tint;
+    if (typeof val === 'string' && val.startsWith('#') && val.length >= 7 && !val.includes('NaN')) {
+      return val.slice(0, 7);
+    }
+    return '#0f172a'; // Fallback
+  }, [theme.tint]);
+
+  const safeSecondary = useDerivedValue(() => {
+    const val = theme.secondaryText;
+    if (typeof val === 'string' && val.startsWith('#') && val.length >= 7 && !val.includes('NaN')) {
+      return val.slice(0, 7);
+    }
+    return '#666666'; // Fallback
+  }, [theme.secondaryText]);
 
   useEffect(() => {
     scale.value = withSpring(isActive ? 1.05 : 1, { damping: 15, stiffness: 100 });
     opacity.value = withTiming(isActive ? 1 : 0.6, { duration: 300 });
+    activeProgress.value = withTiming(isActive ? 1 : 0, { duration: 300 });
   }, [isActive]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-    color: isActive ? theme.tint : theme.secondaryText,
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
+      color: interpolateColor(
+        activeProgress.value,
+        [0, 1],
+        [safeSecondary.value, safeTint.value]
+      ),
+    };
+  });
 
   return (
     <Animated.Text style={[styles.playerLine, animatedStyle]}>
@@ -181,7 +219,7 @@ const triggerHaptic = (type: 'light' | 'medium' | 'success') => {
 };
 
 export default function EditorScreen() {
-  const { colorScheme, userAgent, pauseOnEnd, rewindAmount, useRemoteSolver, solverUrl, solverKey } = useAppSettings();
+  const { colorScheme, userAgent, pauseOnEnd, rewindAmount, useRemoteSolver, solverUrl, solverKey, powBatchSize } = useAppSettings();
   const theme = useTheme();
 
   // Storage Keys for Auto-save
@@ -600,11 +638,11 @@ export default function EditorScreen() {
     try {
       console.log('Attempting to publish:', { trimmedTrack, trimmedArtist, duration });
       await publishLyrics(
+        rawLRC,
         trimmedTrack,
         trimmedArtist,
         trimmedAlbum,
         duration,
-        rawLRC,
         userAgent,
         useRemoteSolver,
         solverUrl,
@@ -613,7 +651,8 @@ export default function EditorScreen() {
           console.log('Publish Progress:', msg);
           setPublishStatus(msg);
         },
-        abortControllerRef.current.signal
+        abortControllerRef.current.signal,
+        powBatchSize
       );
       console.log('Publish successful!');
       Alert.alert('Success', 'Lyrics published to LRCLIB!');

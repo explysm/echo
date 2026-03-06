@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Pressable } from 'react-native';
 import { Moon, Sun, Monitor, Palette, Check, X, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import ColorPicker, { HueSlider, Panel1, Preview } from 'reanimated-color-picker';
+import ColorPicker, { HueCircular, Panel1, Preview } from 'reanimated-color-picker';
+import { runOnJS } from 'react-native-reanimated';
+
+// Helper to determine the actual ColorPicker component
+const ActualColorPicker: any = (ColorPicker as any).ColorPicker || ColorPicker;
+
 
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
@@ -28,6 +33,8 @@ export default function SettingsScreen() {
     setSolverKey,
     useRemoteSolver,
     setUseRemoteSolver,
+    powBatchSize,
+    setPowBatchSize,
     colorScheme 
   } = useAppSettings();
   const themeColors = useTheme();
@@ -36,10 +43,38 @@ export default function SettingsScreen() {
   const [tempTheme, setTempTheme] = useState<CustomTheme>(customTheme);
   const [editingKey, setEditingKey] = useState<keyof CustomTheme | null>(null);
 
-  const onColorChange = ({ hex }: { hex: string }) => {
-    if (editingKey) {
-      setTempTheme(prev => ({ ...prev, [editingKey]: hex }));
+  // Sync tempTheme when modal opens
+  useEffect(() => {
+    if (showThemeModal) {
+      // Ensure all values are safe hex strings
+      const getSafeHex = (hex: string, fallback: string) => {
+        if (typeof hex === 'string' && hex.startsWith('#') && hex.length >= 7 && !hex.includes('NaN')) {
+          return hex.slice(0, 7);
+        }
+        return fallback;
+      };
+
+      setTempTheme({
+        background: getSafeHex(customTheme.background, '#ffffff'),
+        text: getSafeHex(customTheme.text, '#000000'),
+        secondaryText: getSafeHex(customTheme.secondaryText, '#666666'),
+        tint: getSafeHex(customTheme.tint, '#0f172a'),
+      });
     }
+  }, [showThemeModal, customTheme]);
+
+  const updateColor = useCallback((hex: string) => {
+    // reanimated-color-picker can sometimes return colors with alpha or NaN during rapid movement
+    if (editingKey && hex && typeof hex === 'string' && !hex.includes('NaN')) {
+      // Ensure we only store the 6-digit hex to avoid malformed color strings (like #RRGGBBAA15)
+      const safeHex = hex.startsWith('#') ? hex.slice(0, 7) : hex;
+      setTempTheme(prev => ({ ...prev, [editingKey]: safeHex }));
+    }
+  }, [editingKey]);
+
+  const onColorChange = ({ hex }: { hex: string }) => {
+    'worklet';
+    runOnJS(updateColor)(hex);
   };
 
   const handleApplyCustomTheme = () => {
@@ -91,16 +126,6 @@ export default function SettingsScreen() {
               onPress={() => setAccentKey(key)}
             />
           ))}
-          <TouchableOpacity
-            style={[
-              styles.accentButton,
-              { backgroundColor: customTheme.tint, justifyContent: 'center', alignItems: 'center' },
-              accentKey === 'custom' && { borderColor: themeColors.text, borderWidth: 3 }
-            ]}
-            onPress={() => setShowThemeModal(true)}
-          >
-            <Palette size={20} color={customTheme.background} />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -227,6 +252,31 @@ export default function SettingsScreen() {
           LRCLIB requires a descriptive User-Agent. Include your app name and a contact link or
           email.
         </Text>
+
+        <Text style={[styles.label, { color: themeColors.secondaryText, marginTop: 20 }]}>Local PoW Batch Size</Text>
+        <TextInput
+          style={[
+            styles.input, 
+            { 
+              color: themeColors.text, 
+              borderColor: themeColors.border,
+              backgroundColor: themeColors.background 
+            }
+          ]}
+          value={powBatchSize.toString()}
+          onChangeText={(text) => {
+            const val = parseInt(text, 10);
+            if (!isNaN(val) && val > 0) setPowBatchSize(val);
+            else if (text === '') setPowBatchSize(0);
+          }}
+          keyboardType="numeric"
+          placeholder="e.g. 50"
+          placeholderTextColor={themeColors.secondaryText}
+        />
+        <Text style={[styles.hint, { color: themeColors.secondaryText }]}>
+          How many hashes to compute in parallel. Higher values are faster but may make the app
+          less responsive and use more battery. Default: 50 (Native), 1000 (Web).
+        </Text>
       </View>
 
       <View style={styles.section}>
@@ -248,7 +298,7 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.themePreview, { backgroundColor: tempTheme.background, borderColor: tempTheme.secondaryText + '33' }]}>
+            <View style={[styles.themePreview, { backgroundColor: tempTheme.background, borderColor: (tempTheme.secondaryText?.slice(0, 7) || tempTheme.secondaryText) + '33' }]}>
               <Text style={{ color: tempTheme.text, fontSize: 18, fontWeight: 'bold' }}>Theme Preview</Text>
               <Text style={{ color: tempTheme.secondaryText, fontSize: 14 }}>This is how your text will look.</Text>
               <View style={[styles.previewPill, { backgroundColor: tempTheme.tint }]}>
@@ -288,14 +338,14 @@ export default function SettingsScreen() {
 
               {editingKey && (
                 <View style={styles.pickerContainer}>
-                  <ColorPicker 
+                  <ActualColorPicker 
                     value={tempTheme[editingKey]} 
                     onChange={onColorChange}
                   >
                     <Panel1 style={styles.pickerPanel} />
-                    <HueSlider style={styles.pickerWheel} />
+                    <HueCircular style={styles.pickerWheel} />
                     <Preview hideInitialColor />
-                  </ColorPicker>
+                  </ActualColorPicker>
                 </View>
               )}
             </ScrollView>

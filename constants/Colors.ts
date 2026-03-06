@@ -2,14 +2,20 @@ import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/constants/Theme';
 
 export const getThemeColors = (accentKey: AccentKey = 'slate', customTheme?: CustomTheme) => {
   if (accentKey === 'custom' && customTheme) {
+    // Ensure colors are 6-digit hex before appending alpha
+    const safeSecondary = customTheme.secondaryText?.slice(0, 7) || '#666666';
+    const safeTint = customTheme.tint?.slice(0, 7) || '#0f172a';
+    const safeText = customTheme.text?.slice(0, 7) || '#000000';
+    const safeBackground = customTheme.background?.slice(0, 7) || '#ffffff';
+
     const themeColors = {
-      text: customTheme.text,
-      background: customTheme.background,
-      tint: customTheme.tint,
-      tabIconDefault: customTheme.secondaryText,
-      tabIconSelected: customTheme.tint,
-      border: customTheme.secondaryText + '33', // 20% opacity
-      secondaryText: customTheme.secondaryText,
+      text: safeText,
+      background: safeBackground,
+      tint: safeTint,
+      tabIconDefault: safeSecondary,
+      tabIconSelected: safeTint,
+      border: safeSecondary + '33', // 20% opacity
+      secondaryText: safeSecondary,
     };
     return {
       light: themeColors,
