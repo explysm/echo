@@ -14,6 +14,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'app.json'
       - 'tsconfig.json'
+  workflow_dispatch:
 
 jobs:
   build:

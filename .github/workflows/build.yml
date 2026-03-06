@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -60,6 +61,7 @@ jobs:
         with:
           files: android/app/build/outputs/apk/release/app-release.apk
           name: Echo ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('manual-{0}', github.sha) }}
           draft: false
           prerelease: false
         env:
