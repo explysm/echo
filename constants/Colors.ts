@@ -1,19 +1,26 @@
-const tintColorLight = '#0f172a'; // Slate 900
-const tintColorDark = '#f8fafc';  // Slate 50
+import { ACCENT_COLORS, AccentKey } from '@/context/AppSettingsContext';
 
-export default {
-  light: {
-    text: '#0f172a',
-    background: '#ffffff',
-    tint: tintColorLight,
-    tabIconDefault: '#94a3b8',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#f8fafc',
-    background: '#020617',
-    tint: tintColorDark,
-    tabIconDefault: '#475569',
-    tabIconSelected: tintColorDark,
-  },
+export default (accentKey: AccentKey = 'slate') => {
+  const tintColor = ACCENT_COLORS[accentKey];
+  
+  return {
+    light: {
+      text: '#0f172a',
+      background: '#ffffff',
+      tint: tintColor,
+      tabIconDefault: '#94a3b8',
+      tabIconSelected: tintColor,
+      border: '#e2e8f0', // Slate 200
+      secondaryText: '#64748b', // Slate 500
+    },
+    dark: {
+      text: '#f8fafc',
+      background: '#020617', // Slate 950
+      tint: accentKey === 'slate' ? '#f8fafc' : tintColor,
+      tabIconDefault: '#475569',
+      tabIconSelected: accentKey === 'slate' ? '#f8fafc' : tintColor,
+      border: '#1e293b', // Slate 800
+      secondaryText: '#94a3b8', // Slate 400
+    },
+  };
 };

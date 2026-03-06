@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -7,6 +7,7 @@ import {
   Switch,
   Alert,
   Modal,
+  Pressable,
   Platform,
 } from 'react-native';
 import { Audio } from 'expo-av';
@@ -20,12 +21,18 @@ import {
   FileMusic,
   Share,
   Trash2,
+  Edit2,
+  CloudUpload,
+  FileDown,
+  ChevronLeft,
 } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
+import { StatusBar } from 'expo-status-bar';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 
-import { Text, View } from '@/components/Themed';
+import { Text, View, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
-import Colors from '@/constants/Colors';
 import {
   LyricLine,
   formatLyricsToLRC,
@@ -34,8 +41,8 @@ import {
 } from '@/lib/lrclib';
 
 export default function EditorScreen() {
-  const { colorScheme, userAgent } = useAppSettings();
-  const tintColor = Colors[colorScheme].tint;
+  const { colorScheme, userAgent, pauseOnEnd, rewindAmount } = useAppSettings();
+  const theme = useTheme();
 
   // Audio state
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -54,13 +61,77 @@ export default function EditorScreen() {
   const [currentLineStart, setCurrentLineStart] = useState<number | null>(null);
   const [showTextInput, setShowTextInput] = useState(false);
   const [pendingText, setPendingText] = useState('');
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   // Metadata state
   const [trackName, setTrackName] = useState('');
   const [artistName, setArtistName] = useState('');
   const [albumName, setAlbumName] = useState('');
-  const [showMetadataModal, setShowMetadataModal] = useState(false);
+
+  // Share / Export state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareStep, setShareStep] = useState<'options' | 'lrclib'>('options');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishStatus, setPublishStatus] = useState('');
+
+  const handleExportLRC = async () => {
+    if (!rawLRC) {
+      Alert.alert('Empty Lyrics', 'There are no lyrics to export.');
+      return;
+    }
+
+    const safeFilename = (trackName || 'lyrics').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const filename = `${safeFilename}.lrc`;
+
+    // 1. Handle Web Download
+    if (Platform.OS === 'web') {
+      const element = document.createElement("a");
+      const file = new Blob([rawLRC], {type: 'text/plain'});
+      element.href = URL.createObjectURL(file);
+      element.download = filename;
+      document.body.appendChild(element);
+      element.click();
+      setShowShareModal(false);
+      return;
+    }
+
+    try {
+      // 2. Handle Android "Download" (Save to Folder)
+      if (Platform.OS === 'android') {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (permissions.granted) {
+          const uri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            'text/plain'
+          );
+          await FileSystem.writeAsStringAsync(uri, rawLRC, { encoding: FileSystem.EncodingType.UTF8 });
+          Alert.alert('Success', `Saved ${filename} to folder.`);
+          setShowShareModal(false);
+          return;
+        }
+      }
+
+      // 3. Fallback for iOS/Others: Use System Share Sheet
+      const fileUri = FileSystem.cacheDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, rawLRC, { 
+        encoding: FileSystem.EncodingType.UTF8 
+      });
+      
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(fileUri, {
+          dialogTitle: 'Export LRC File',
+          mimeType: 'text/plain',
+        });
+      } else {
+        Alert.alert('Sharing Unavailable', 'Could not open share sheet.');
+      }
+      setShowShareModal(false);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unknown error occurred during export.');
+    }
+  };
 
   useEffect(() => {
     return sound
@@ -78,6 +149,20 @@ export default function EditorScreen() {
     }
   };
 
+  const parseMetadataFromFilename = (filename: string) => {
+    // Remove extension
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    
+    // Try "Artist - Title" pattern
+    const parts = nameWithoutExt.split(" - ");
+    if (parts.length >= 2) {
+      setArtistName(parts[0].trim());
+      setTrackName(parts.slice(1).join(" - ").trim());
+    } else {
+      setTrackName(nameWithoutExt);
+    }
+  };
+
   const pickAudio = async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: 'audio/*',
@@ -87,6 +172,7 @@ export default function EditorScreen() {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
       setAudioFile({ uri: asset.uri, name: asset.name });
+      parseMetadataFromFilename(asset.name);
 
       if (sound) {
         await sound.unloadAsync();
@@ -113,6 +199,7 @@ export default function EditorScreen() {
   const stopPlayback = async () => {
     if (!sound) return;
     await sound.stopAsync();
+    await sound.setPositionAsync(0);
   };
 
   const onSliderValueChange = async (value: number) => {
@@ -121,32 +208,54 @@ export default function EditorScreen() {
     }
   };
 
-  const handleFABPress = () => {
+  const handleFABPress = async () => {
+    setEditingLineId(null);
+    setPendingText('');
     if (syncState === 'idle') {
       setSyncState('capturing_start');
       setCurrentLineStart(position);
     } else if (syncState === 'capturing_start') {
+      if (pauseOnEnd && sound) {
+        await sound.pauseAsync();
+        const rewindPos = Math.max(0, position - rewindAmount);
+        await sound.setPositionAsync(rewindPos * 1000);
+      }
       setSyncState('capturing_end');
       setShowTextInput(true);
     }
   };
 
+  const handleEditLine = (line: LyricLine) => {
+    setEditingLineId(line.id);
+    setPendingText(line.text);
+    setShowTextInput(true);
+  };
+
   const saveLyricLine = () => {
-    if (currentLineStart !== null) {
+    let updatedLyrics = [...lyrics];
+    if (editingLineId) {
+      updatedLyrics = updatedLyrics.map((l) => 
+        l.id === editingLineId ? { ...l, text: pendingText } : l
+      );
+    } else if (currentLineStart !== null) {
       const newLine: LyricLine = {
         id: Math.random().toString(36).substr(2, 9),
         start: currentLineStart,
         end: position,
         text: pendingText,
       };
-      const updatedLyrics = [...lyrics, newLine].sort((a, b) => a.start - b.start);
-      setLyrics(updatedLyrics);
-      setRawLRC(formatLyricsToLRC(updatedLyrics));
+      updatedLyrics.push(newLine);
     }
+    
+    updatedLyrics.sort((a, b) => a.start - b.start);
+    setLyrics(updatedLyrics);
+    setRawLRC(formatLyricsToLRC(updatedLyrics));
+    
     setPendingText('');
     setShowTextInput(false);
     setSyncState('idle');
     setCurrentLineStart(null);
+    setEditingLineId(null);
   };
 
   const deleteLyricLine = (id: string) => {
@@ -157,7 +266,6 @@ export default function EditorScreen() {
 
   const handleRawLRCChange = (text: string) => {
     setRawLRC(text);
-    // Optionally try to parse it immediately or on toggle
   };
 
   useEffect(() => {
@@ -173,6 +281,7 @@ export default function EditorScreen() {
     }
 
     setIsPublishing(true);
+    setPublishStatus('Initializing...');
     try {
       await publishLyrics(
         trackName,
@@ -180,40 +289,56 @@ export default function EditorScreen() {
         albumName,
         duration,
         rawLRC,
-        userAgent
+        userAgent,
+        (msg) => setPublishStatus(msg)
       );
       Alert.alert('Success', 'Lyrics published to LRCLIB!');
-      setShowMetadataModal(false);
+      setShowShareModal(false);
+      setPublishStatus('');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An unknown error occurred.');
+      Alert.alert('Publish Error', error.message || 'An unknown error occurred.');
+      setPublishStatus(`Error: ${error.message}`);
     } finally {
       setIsPublishing(false);
     }
   };
 
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      
       {/* Audio Controls */}
       <View style={styles.audioControls}>
-        <TouchableOpacity onPress={pickAudio} style={styles.fileButton}>
-          <FileMusic color={tintColor} size={24} />
-          <Text style={styles.fileName} numberOfLines={1}>
-            {audioFile ? audioFile.name : 'Load MP3'}
-          </Text>
+        <TouchableOpacity 
+          onPress={pickAudio} 
+          style={[styles.fileButton, { borderColor: theme.border }]}
+        >
+          <FileMusic color={theme.tint} size={24} />
+          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <Text style={styles.fileName} numberOfLines={1}>
+              {audioFile ? audioFile.name : 'Load MP3'}
+            </Text>
+            {audioFile && (
+              <Text style={[styles.metaHint, { color: theme.secondaryText }]}>
+                {artistName ? `${artistName} - ${trackName}` : 'No metadata found'}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
 
         <View style={styles.sliderRow}>
           <Slider
             style={{ flex: 1, height: 40 }}
             minimumValue={0}
-            maximumValue={duration}
+            maximumValue={duration || 1}
             value={position}
             onSlidingComplete={onSliderValueChange}
-            minimumTrackTintColor={tintColor}
-            maximumTrackTintColor="#ccc"
-            thumbTintColor={tintColor}
+            minimumTrackTintColor={theme.tint}
+            maximumTrackTintColor={theme.border}
+            thumbTintColor={theme.tint}
           />
-          <Text style={styles.timeText}>
+          <Text style={[styles.timeText, { color: theme.secondaryText }]}>
             {formatTime(position)} / {formatTime(duration)}
           </Text>
         </View>
@@ -221,56 +346,78 @@ export default function EditorScreen() {
         <View style={styles.playbackButtons}>
           <TouchableOpacity onPress={togglePlayback} disabled={!sound}>
             {isPlaying ? (
-              <Pause color={tintColor} size={32} />
+              <Pause color={theme.tint} size={32} />
             ) : (
-              <Play color={tintColor} size={32} />
+              <Play color={theme.tint} size={32} />
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={stopPlayback} disabled={!sound}>
-            <Square color={tintColor} size={32} />
+            <Square color={theme.tint} size={32} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Sync Toggle */}
       <View style={styles.toggleRow}>
-        <Text>Raw Text</Text>
+        <Text style={{ color: theme.secondaryText }}>Raw</Text>
         <Switch
           value={isSyncMode}
           onValueChange={setIsSyncMode}
-          trackColor={{ false: '#767577', true: tintColor }}
+          trackColor={{ false: theme.border, true: theme.tint }}
+          thumbColor="#fff"
         />
-        <Text>Sync Mode</Text>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity onPress={() => setShowMetadataModal(true)}>
-          <Share color={tintColor} size={24} />
+        <Text style={{ color: theme.secondaryText }}>Sync</Text>
+        <View style={{ flex: 1, backgroundColor: 'transparent' }} />
+        <TouchableOpacity onPress={() => {
+          setShareStep('options');
+          setShowShareModal(true);
+        }}>
+          <Share color={theme.tint} size={24} />
         </TouchableOpacity>
       </View>
 
       {/* Content Area */}
-      <View style={styles.contentArea}>
+      <View style={[styles.contentArea, { borderColor: theme.border }]}>
         {isSyncMode ? (
           <ScrollView style={styles.lyricList}>
+            {lyrics.length === 0 && (
+              <Text style={[styles.emptyHint, { color: theme.secondaryText }]}>
+                No lyrics yet. Use the + button to start syncing.
+              </Text>
+            )}
             {lyrics.map((line) => (
-              <View key={line.id} style={styles.lyricLine}>
+              <Pressable 
+                key={line.id} 
+                style={({ pressed }) => [
+                  styles.lyricLine, 
+                  { borderBottomColor: theme.border },
+                  pressed && { backgroundColor: theme.border }
+                ]}
+                onPress={() => handleEditLine(line)}
+              >
                 <View style={styles.lyricLineInfo}>
-                  <Text style={styles.lyricTimestamp}>[{formatTime(line.start)}]</Text>
+                  <TouchableOpacity onPress={() => onSliderValueChange(line.start)}>
+                    <Text style={[styles.lyricTimestamp, { color: theme.tint }]}>
+                      [{formatTime(line.start)}]
+                    </Text>
+                  </TouchableOpacity>
                   <Text style={styles.lyricText}>{line.text}</Text>
                 </View>
-                <TouchableOpacity onPress={() => deleteLyricLine(line.id)}>
-                  <Trash2 color="#ff4444" size={20} />
+                <TouchableOpacity onPress={() => deleteLyricLine(line.id)} style={{ padding: 5 }}>
+                  <Trash2 color="#ff4444" size={18} />
                 </TouchableOpacity>
-              </View>
+              </Pressable>
             ))}
+            <View style={{ height: 100, backgroundColor: 'transparent' }} />
           </ScrollView>
         ) : (
           <TextInput
-            style={[styles.rawInput, { color: Colors[colorScheme].text }]}
+            style={[styles.rawInput, { color: theme.text }]}
             multiline
             value={rawLRC}
             onChangeText={handleRawLRCChange}
             placeholder="Paste raw LRC or plain text here..."
-            placeholderTextColor="#888"
+            placeholderTextColor={theme.secondaryText}
           />
         )}
       </View>
@@ -278,85 +425,156 @@ export default function EditorScreen() {
       {/* FAB */}
       {isSyncMode && sound && (
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: tintColor }]}
+          style={[styles.fab, { backgroundColor: theme.tint }]}
           onPress={handleFABPress}
         >
           {syncState === 'idle' ? (
-            <Plus color="white" size={32} />
+            <Plus color={theme.background} size={32} />
           ) : syncState === 'capturing_start' ? (
-            <Text style={styles.fabText}>END</Text>
+            <Text style={[styles.fabText, { color: theme.background }]}>END</Text>
           ) : (
-            <Save color="white" size={32} />
+            <Save color={theme.background} size={32} />
           )}
         </TouchableOpacity>
       )}
 
-      {/* Text Input Modal for FAB Sync */}
+      {/* Text Input Modal for FAB Sync & Editing */}
       <Modal visible={showTextInput} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Enter Lyric Text</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+            <Text style={styles.modalTitle}>
+              {editingLineId ? 'Edit Lyric' : 'Enter Lyric Text'}
+            </Text>
             <TextInput
-              style={[styles.textInput, { color: Colors[colorScheme].text, borderColor: tintColor }]}
+              style={[styles.textInput, { color: theme.text, borderColor: theme.border }]}
               value={pendingText}
               onChangeText={setPendingText}
               autoFocus
               placeholder="Type the lyric..."
-              placeholderTextColor="#888"
+              placeholderTextColor={theme.secondaryText}
             />
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: tintColor }]}
-              onPress={saveLyricLine}
-            >
-              <Text style={styles.modalButtonText}>Save</Text>
-            </TouchableOpacity>
+            <View style={styles.modalActions}>
+               <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.border, marginRight: 10 }]}
+                onPress={() => {
+                  setShowTextInput(false);
+                  setSyncState('idle');
+                  setEditingLineId(null);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.tint, flex: 1 }]}
+                onPress={saveLyricLine}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.background }]}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
-      {/* Metadata / Publish Modal */}
-      <Modal visible={showMetadataModal} transparent animationType="slide">
+      {/* Share / Export Modal */}
+      <Modal visible={showShareModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Publish to LRCLIB</Text>
-            <TextInput
-              style={[styles.textInput, { color: Colors[colorScheme].text, borderColor: tintColor }]}
-              placeholder="Track Name"
-              placeholderTextColor="#888"
-              value={trackName}
-              onChangeText={setTrackName}
-            />
-            <TextInput
-              style={[styles.textInput, { color: Colors[colorScheme].text, borderColor: tintColor }]}
-              placeholder="Artist Name"
-              placeholderTextColor="#888"
-              value={artistName}
-              onChangeText={setArtistName}
-            />
-            <TextInput
-              style={[styles.textInput, { color: Colors[colorScheme].text, borderColor: tintColor }]}
-              placeholder="Album Name"
-              placeholderTextColor="#888"
-              value={albumName}
-              onChangeText={setAlbumName}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#888', marginRight: 10 }]}
-                onPress={() => setShowMetadataModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor, flex: 1 }]}
-                onPress={handlePublish}
-                disabled={isPublishing}
-              >
-                <Text style={styles.modalButtonText}>
-                  {isPublishing ? 'Publishing...' : 'Publish'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+          <View style={[styles.modalContent, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+            {shareStep === 'options' ? (
+              <>
+                <Text style={styles.modalTitle}>Share & Export</Text>
+                
+                <TouchableOpacity 
+                  style={[styles.shareOption, { borderColor: theme.border }]}
+                  onPress={() => setShareStep('lrclib')}
+                >
+                  <CloudUpload color={theme.tint} size={28} />
+                  <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                    <Text style={styles.shareOptionTitle}>Upload to LRCLIB</Text>
+                    <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
+                      Submit your lyrics to the public database.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.shareOption, { borderColor: theme.border }]}
+                  onPress={handleExportLRC}
+                >
+                  <FileDown color={theme.tint} size={28} />
+                  <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                    <Text style={styles.shareOptionTitle}>Export as .lrc File</Text>
+                    <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
+                      Save or share the raw LRC file.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.border, marginTop: 10 }]}
+                  onPress={() => setShowShareModal(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={[styles.modalHeader, { backgroundColor: 'transparent' }]}>
+                  <TouchableOpacity onPress={() => setShareStep('options')}>
+                    <ChevronLeft color={theme.tint} size={24} />
+                  </TouchableOpacity>
+                  <Text style={[styles.modalTitle, { flex: 1, marginBottom: 0 }]}>Publish to LRCLIB</Text>
+                  <View style={{ width: 24, backgroundColor: 'transparent' }} />
+                </View>
+
+                <TextInput
+                  style={[styles.textInput, { color: theme.text, borderColor: theme.border }]}
+                  placeholder="Track Name"
+                  placeholderTextColor={theme.secondaryText}
+                  value={trackName}
+                  onChangeText={setTrackName}
+                />
+                <TextInput
+                  style={[styles.textInput, { color: theme.text, borderColor: theme.border }]}
+                  placeholder="Artist Name"
+                  placeholderTextColor={theme.secondaryText}
+                  value={artistName}
+                  onChangeText={setArtistName}
+                />
+                <TextInput
+                  style={[styles.textInput, { color: theme.text, borderColor: theme.border }]}
+                  placeholder="Album Name"
+                  placeholderTextColor={theme.secondaryText}
+                  value={albumName}
+                  onChangeText={setAlbumName}
+                />
+                
+                {isPublishing && (
+                  <View style={[styles.statusLog, { backgroundColor: theme.border }]}>
+                    <Text style={[styles.statusText, { color: theme.text }]}>
+                      {publishStatus}
+                    </Text>
+                  </View>
+                )}
+                
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.border, marginRight: 10 }]}
+                    onPress={() => setShowShareModal(false)}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.tint, flex: 1 }]}
+                    onPress={handlePublish}
+                    disabled={isPublishing}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.background }]}>
+                      {isPublishing ? 'Publishing...' : 'Publish'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -382,15 +600,18 @@ const styles = StyleSheet.create({
   fileButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderRadius: 8,
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ccc',
   },
   fileName: {
-    flex: 1,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  metaHint: {
+    fontSize: 12,
+    marginTop: 2,
   },
   sliderRow: {
     flexDirection: 'row',
@@ -401,6 +622,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     minWidth: 80,
     textAlign: 'right',
+    fontFamily: 'SpaceMono',
   },
   playbackButtons: {
     flexDirection: 'row',
@@ -412,12 +634,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginBottom: 10,
+    backgroundColor: 'transparent',
   },
   contentArea: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 10,
     overflow: 'hidden',
   },
@@ -428,26 +650,35 @@ const styles = StyleSheet.create({
   },
   lyricList: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+  emptyHint: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 14,
   },
   lyricLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
   },
   lyricLineInfo: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     flex: 1,
+    backgroundColor: 'transparent',
   },
   lyricTimestamp: {
     fontWeight: 'bold',
     fontFamily: 'SpaceMono',
+    fontSize: 14,
   },
   lyricText: {
     flex: 1,
+    fontSize: 15,
   },
   fab: {
     position: 'absolute',
@@ -458,54 +689,85 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
   },
   fabText: {
-    color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
     width: '100%',
-    padding: 20,
-    borderRadius: 16,
-    gap: 15,
+    padding: 24,
+    borderRadius: 20,
+    gap: 16,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  shareOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  shareOptionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  shareOptionDesc: {
+    fontSize: 12,
+    marginTop: 2,
   },
   textInput: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
   },
   modalButton: {
-    padding: 15,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
   },
   modalButtonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
   modalActions: {
     flexDirection: 'row',
     gap: 10,
+    backgroundColor: 'transparent',
+  },
+  statusLog: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: 'SpaceMono',
   },
 });

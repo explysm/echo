@@ -6,13 +6,24 @@ import Colors from '@/constants/Colors';
 import { useAppSettings } from '@/context/AppSettingsContext';
 
 export default function TabLayout() {
-  const { colorScheme } = useAppSettings();
+  const { colorScheme, accentKey } = useAppSettings();
+  const theme = Colors(accentKey)[colorScheme];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
+        tabBarActiveTintColor: theme.tint,
+        tabBarInactiveTintColor: theme.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: theme.background,
+          borderTopColor: theme.border,
+        },
+        headerStyle: {
+          backgroundColor: theme.background,
+        },
+        headerTintColor: theme.text,
         headerShown: true,
+        animation: 'fade', // Add fade animation between tabs
       }}>
       <Tabs.Screen
         name="index"
