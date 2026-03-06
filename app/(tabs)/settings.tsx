@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Pressable } from 'react-native';
 import { Moon, Sun, Monitor, Palette, Check, X, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import ColorPicker, { HueWheel, Panel1, Preview } from 'reanimated-color-picker';
+import ColorPicker, { HueSlider, Panel1, Preview } from 'reanimated-color-picker';
 
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
@@ -293,7 +293,7 @@ export default function SettingsScreen() {
                     onChange={onColorChange}
                   >
                     <Panel1 style={styles.pickerPanel} />
-                    <HueWheel style={styles.pickerWheel} />
+                    <HueSlider style={styles.pickerWheel} />
                     <Preview hideInitialColor />
                   </ColorPicker>
                 </View>

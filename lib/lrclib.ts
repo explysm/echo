@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto';
-import * as Notifications from 'expo-notifications';
+import Notifications from './notificationHelper';
 import { Platform } from 'react-native';
 
 export interface LyricLine {

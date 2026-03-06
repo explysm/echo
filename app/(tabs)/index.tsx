@@ -204,6 +204,11 @@ export default function EditorScreen() {
   const [rawLRC, setRawLRC] = useState('');
   const [editorMode, setEditorMode] = useState<'raw' | 'sync' | 'play'>('raw');
 
+  // Metadata state
+  const [trackName, setTrackName] = useState('');
+  const [artistName, setArtistName] = useState('');
+  const [albumName, setAlbumName] = useState('');
+
   // Auto-save logic
   useEffect(() => {
     const saveProgress = async () => {
@@ -254,11 +259,6 @@ export default function EditorScreen() {
   const [showTextInput, setShowTextInput] = useState(false);
   const [pendingText, setPendingText] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
-
-  // Metadata state
-  const [trackName, setTrackName] = useState('');
-  const [artistName, setArtistName] = useState('');
-  const [albumName, setAlbumName] = useState('');
 
   // Share / Export state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -498,29 +498,77 @@ export default function EditorScreen() {
   }, [currentLineIndex, editorMode]);
 
   const handleReset = () => {
-    Alert.alert(
-      'Reset Editor',
-      'This will clear all lyrics and metadata. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          style: 'destructive',
-          onPress: async () => {
-            setRawLRC('');
-            setLyrics([]);
-            setTrackName('');
-            setArtistName('');
-            setAlbumName('');
-            setAudioFile(null);
-            if (sound) await sound.unloadAsync();
-            setSound(null);
-            await AsyncStorage.multiRemove(Object.values(EDITOR_STORAGE_KEYS));
-            triggerHaptic('success');
-          }
+    const performReset = async () => {
+      // Audio reset
+      if (sound) {
+        try {
+          await sound.stopAsync();
+          await sound.unloadAsync();
+        } catch (e) {
+          console.warn('Error unloading sound during reset:', e);
         }
-      ]
-    );
+      }
+      setSound(null);
+      setAudioFile(null);
+      setIsPlaying(false);
+      setPosition(0);
+      setDuration(0);
+
+      // Lyrics & Metadata reset
+      setRawLRC('');
+      setLyrics([]);
+      setTrackName('');
+      setArtistName('');
+      setAlbumName('');
+      
+      // UI State reset
+      setEditorMode('raw');
+      setSyncState('idle');
+      setCurrentLineStart(null);
+      setShowTextInput(false);
+      setPendingText('');
+      setEditingLineId(null);
+      setShowShareModal(false);
+      setShareStep('options');
+      setIsPublishing(false);
+      setPublishStatus('');
+
+      // Persistence reset
+      try {
+        await AsyncStorage.multiRemove(Object.values(EDITOR_STORAGE_KEYS));
+      } catch (e) {
+        console.error('Failed to clear storage during reset:', e);
+      }
+
+      triggerHaptic('success');
+      
+      // On web, sometimes a slight delay helps with UI consistency
+      if (Platform.OS === 'web') {
+        setTimeout(() => {
+          // Force UI update if needed, though state updates should be enough
+        }, 100);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      // Use standard window.confirm on web for better reliability if Alert polyfill is tricky
+      if (window.confirm('Reset Editor? This will clear all lyrics, metadata, and the attached audio.')) {
+        performReset();
+      }
+    } else {
+      Alert.alert(
+        'Reset Editor',
+        'This will clear all lyrics, metadata, and the attached audio. Are you sure?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Reset', 
+            style: 'destructive',
+            onPress: performReset
+          }
+        ]
+      );
+    }
   };
 
   const applyOffset = (ms: number) => {
