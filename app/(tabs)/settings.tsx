@@ -5,7 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import ColorPicker, { HueWheel, Panel1, Preview } from 'reanimated-color-picker';
 
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
-import { useAppSettings, ACCENT_COLORS, AccentKey, CustomTheme } from '@/context/AppSettingsContext';
+import { useAppSettings } from '@/context/AppSettingsContext';
+import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/constants/Theme';
 
 export default function SettingsScreen() {
   const { 

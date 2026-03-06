@@ -1,9 +1,8 @@
-name: Build & Release APK
+name: Build Debug APK (Pre-release)
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ pre ]
 
 jobs:
   build:
@@ -43,24 +42,13 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
-      - name: Decode Keystore
-        run: echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/release.keystore
-
-      - name: Build Release APK
+      - name: Build Debug APK
         run: |
           cd android
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=release.keystore \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASS }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASS }}
+          ./gradlew assembleDebug
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          files: android/app/build/outputs/apk/release/app-release.apk
-          name: Echo ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: echo-debug-pre-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

@@ -1,4 +1,4 @@
-import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/context/AppSettingsContext';
+import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/constants/Theme';
 
 export default (accentKey: AccentKey = 'slate', customTheme?: CustomTheme) => {
   if (accentKey === 'custom' && customTheme) {
