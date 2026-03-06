@@ -3,6 +3,22 @@ name: Build Debug APK (Pre-release)
 on:
   push:
     branches: [ pre ]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'constants/**'
+      - 'context/**'
+      - 'lib/**'
+      - 'assets/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'app.json'
+      - 'tsconfig.json'
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/**'
+      - '.gitignore'
 
 jobs:
   build:

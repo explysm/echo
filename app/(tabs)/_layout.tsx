@@ -2,12 +2,12 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Music, Settings } from 'lucide-react-native';
 
-import Colors from '@/constants/Colors';
+import { getThemeColors } from '@/constants/Colors';
 import { useAppSettings } from '@/context/AppSettingsContext';
 
 export default function TabLayout() {
-  const { colorScheme, accentKey } = useAppSettings();
-  const theme = Colors(accentKey)[colorScheme];
+  const { colorScheme, accentKey, customTheme } = useAppSettings();
+  const theme = getThemeColors(accentKey, customTheme)[colorScheme];
 
   return (
     <Tabs

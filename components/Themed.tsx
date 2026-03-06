@@ -7,7 +7,7 @@ import { Text as DefaultText, View as DefaultView, ScrollView as DefaultScrollVi
 import { useColorScheme } from './useColorScheme';
 import { useAppSettings } from '@/context/AppSettingsContext';
 
-import Colors from '@/constants/Colors';
+import { getThemeColors } from '@/constants/Colors';
 
 type ThemeProps = {
   lightColor?: string;
@@ -21,7 +21,7 @@ export type ScrollViewProps = ThemeProps & DefaultScrollView['props'];
 export function useTheme() {
   const theme = useColorScheme();
   const { accentKey, customTheme } = useAppSettings();
-  return Colors(accentKey, customTheme)[theme];
+  return getThemeColors(accentKey, customTheme)[theme];
 }
 
 export function useThemeColor(
@@ -36,7 +36,7 @@ export function useThemeColor(
     return colorFromProps;
   } else {
     // @ts-ignore
-    return Colors(accentKey, customTheme)[theme][colorName];
+    return getThemeColors(accentKey, customTheme)[theme][colorName];
   }
 }
 

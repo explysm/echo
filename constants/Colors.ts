@@ -1,6 +1,6 @@
 import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/constants/Theme';
 
-export default (accentKey: AccentKey = 'slate', customTheme?: CustomTheme) => {
+export const getThemeColors = (accentKey: AccentKey = 'slate', customTheme?: CustomTheme) => {
   if (accentKey === 'custom' && customTheme) {
     const themeColors = {
       text: customTheme.text,
