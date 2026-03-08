@@ -7,7 +7,8 @@ import {
   Platform,
   Modal,
   LayoutRectangle,
-  useWindowDimensions
+  useWindowDimensions,
+  StatusBar as RNStatusBar
 } from 'react-native';
 import Animated, { 
   FadeIn
@@ -130,11 +131,16 @@ export function TutorialView({ children, targetKey, style, ...props }: any) {
         });
       }
     } else {
-      ref.current?.measureInWindow((x, y, width, height) => {
-        if (width > 0 && height > 0) {
-          registerLayout(targetKey, { x, y, width, height });
-        }
-      });
+      // Small delay to ensure layout is stable
+      setTimeout(() => {
+        ref.current?.measureInWindow((x, y, width, height) => {
+          if (width > 0 && height > 0) {
+            // Apply a small vertical offset (2px) for Android as requested
+            const verticalOffset = Platform.OS === 'android' ? 2 : 0;
+            registerLayout(targetKey, { x, y: y + verticalOffset, width, height });
+          }
+        });
+      }, 100);
     }
   };
 
@@ -209,18 +215,15 @@ export default function TutorialOverlay({ onModeChange }: { onModeChange?: (mode
   // Heuristic-based positioning logic for Echo
   let cardPosition: any = { justifyContent: 'center' };
   if (highlight) {
-    // Lowered threshold to 45%. 
-    // Elements like Global Offset (middle-top) will now push the card to the TOP.
-    // This ensures they are visible from below the card.
     if (highlight.y > height * 0.45) {
-      cardPosition = { justifyContent: 'flex-start', paddingTop: 40 };
+      cardPosition = { justifyContent: 'flex-start', paddingTop: Platform.OS === 'android' ? 60 : 40 };
     } else {
-      cardPosition = { justifyContent: 'flex-end', paddingBottom: 100 };
+      cardPosition = { justifyContent: 'flex-end', paddingBottom: 120 };
     }
   }
 
   return (
-    <Modal transparent visible={visible} animationType="fade">
+    <Modal transparent visible={visible} animationType="fade" statusBarTranslucent={true}>
       <View style={[styles.overlay, cardPosition]}>
         {enableFancyAnimations && Platform.OS !== 'web' && (
           <BlurView 
@@ -241,11 +244,11 @@ export default function TutorialOverlay({ onModeChange }: { onModeChange?: (mode
               style={[
                 styles.highlight, 
                 { 
-                  top: highlight.y, 
-                  left: highlight.x, 
-                  width: highlight.width, 
-                  height: highlight.height,
-                  borderRadius: step.targetKey === 'fab_sync' ? highlight.width / 2 : 12,
+                  top: highlight.y - 2, 
+                  left: highlight.x - 2, 
+                  width: highlight.width + 4, 
+                  height: highlight.height + 4,
+                  borderRadius: step.targetKey === 'fab_sync' ? (highlight.width + 4) / 2 : 12,
                   borderColor: theme.tint,
                   borderWidth: 2,
                   shadowColor: theme.tint,
