@@ -52,7 +52,8 @@
           "checkOnLaunch": "NEVER"
         }
       ],
-      "./plugins/withJitPackFixed"
+      "./plugins/withJitPackFixed",
+      "./plugins/withGradleMemory"
     ],
     "updates": {
       "url": "https://explysm.github.io/echo",
