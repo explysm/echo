@@ -43,20 +43,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Export Web
-        run: npx expo export --platform web
+      - name: Expo Export (Web + OTA)
+        run: npx expo export
         env:
           EXPO_PUBLIC_BUILD_TIME: $(date +%s)
           EXPO_PUBLIC_BASE_URL: /echo
-
-      - name: Create echo.js for bundle update check
-        run: |
-          JS_PATH=$(grep -oE '_expo/static/js/web/[^"]+\.js' dist/index.html | head -n 1)
-          if [ -n "$JS_PATH" ]; then
-            cp "dist/$JS_PATH" dist/echo.js
-          else
-            find dist/_expo/static/js/web -name "*.js" -exec cp {} dist/echo.js \;
-          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

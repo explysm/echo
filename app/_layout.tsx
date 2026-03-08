@@ -8,6 +8,7 @@ import { Alert, Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import * as Updates from 'expo-updates';
 
 import { AppSettingsProvider, useAppSettings } from '@/context/AppSettingsContext';
 
@@ -45,27 +46,32 @@ function RootLayoutContent({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { isInitialized } = useAppSettings();
 
   useEffect(() => {
-    // Check for Remote JS Bundle Update
+    // Check for OTA Updates (expo-updates)
     const checkRemoteUpdate = async () => {
-      if (Platform.OS === 'web' || !isInitialized) return;
+      if (__DEV__ || Platform.OS === 'web' || !isInitialized) return;
+      
       try {
-        const BUNDLE_URL = 'https://explysm.github.io/echo/echo.js';
-        const response = await fetch(BUNDLE_URL, { method: 'HEAD' });
-        const lastModified = response.headers.get('last-modified');
-        
-        if (lastModified) {
-          const storedDate = await AsyncStorage.getItem('@echo_bundle_last_modified');
-          if (storedDate && storedDate !== lastModified) {
-            Alert.alert(
-              'Update Available',
-              'A new version of the app logic is available. Please restart the app to apply.',
-              [{ text: 'Got it', style: 'default' }]
-            );
-          }
-          await AsyncStorage.setItem('@echo_bundle_last_modified', lastModified);
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          Alert.alert(
+            'Update Available',
+            'A new version of Echo is available. Restart the app now to apply the update?',
+            [
+              { text: 'Later', style: 'cancel' },
+              { 
+                text: 'Restart', 
+                style: 'default',
+                onPress: async () => {
+                  await Updates.reloadAsync();
+                }
+              }
+            ]
+          );
         }
       } catch (e) {
-        // Silent fail
+        // Silent fail for update checks
+        console.log('Update check failed:', e);
       }
     };
 

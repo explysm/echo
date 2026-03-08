@@ -45,8 +45,21 @@
 
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-updates",
+        {
+          "checkOnLaunch": "NEVER"
+        }
+      ]
     ],
+    "updates": {
+      "url": "https://explysm.github.io/echo",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true,
       "baseUrl": "/echo"
