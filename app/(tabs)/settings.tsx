@@ -6,6 +6,7 @@ import ColorPicker, { HueCircular, Panel1, Preview, BrightnessSlider } from 'rea
 import { runOnJS } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Helper to determine the actual ColorPicker component
 const ActualColorPicker: any = (ColorPicker as any).ColorPicker || ColorPicker;
@@ -14,6 +15,169 @@ const ActualColorPicker: any = (ColorPicker as any).ColorPicker || ColorPicker;
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
 import { ACCENT_COLORS, CustomTheme } from '@/constants/Theme';
+
+// --- Sub-components to isolate state and prevent re-renders during color picking ---
+
+function CustomThemeModal({ 
+  visible, 
+  onClose, 
+  initialTheme, 
+  onApply,
+  themeColors,
+  colorScheme,
+  enableFancyAnimations 
+}: any) {
+  const [tempTheme, setTempTheme] = useState<CustomTheme>(initialTheme);
+  const [editingKey, setEditingKey] = useState<keyof CustomTheme | null>(null);
+
+  useEffect(() => {
+    if (visible) setTempTheme(initialTheme);
+  }, [visible, initialTheme]);
+
+  const onColorChange = useCallback(({ hex }: { hex: string }) => {
+    'worklet';
+    if (hex && !hex.includes('NaN')) {
+      const safeHex = hex.startsWith('#') ? hex.slice(0, 7) : (hex.length >= 6 ? `#${hex.slice(0, 6)}` : hex);
+      runOnJS(setTempTheme)((prev: any) => ({ ...prev, [editingKey!]: safeHex }));
+    }
+  }, [editingKey]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          {enableFancyAnimations && Platform.OS !== 'web' && (
+            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          )}
+          <View style={[
+            styles.modalContent, 
+            { backgroundColor: themeColors.background, borderColor: themeColors.border, borderWidth: 1 },
+            enableFancyAnimations && { backgroundColor: themeColors.background + 'CC' }
+          ]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Custom Theme Maker</Text>
+              <TouchableOpacity onPress={onClose}>
+                <X color={themeColors.text} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.themePreview, { backgroundColor: tempTheme.background, borderColor: (tempTheme.secondaryText?.slice(0, 7) || tempTheme.secondaryText) + '33' }]}>
+              <Text style={{ color: tempTheme.text, fontSize: 18, fontWeight: 'bold' }}>Theme Preview</Text>
+              <Text style={{ color: tempTheme.secondaryText, fontSize: 14 }}>This is how your text will look.</Text>
+              <View style={[styles.previewPill, { backgroundColor: tempTheme.tint }]}>
+                <Text style={{ color: tempTheme.background, fontWeight: 'bold' }}>ACTIVE TINT</Text>
+              </View>
+            </View>
+
+            <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+              {(['background', 'text', 'secondaryText', 'tint'] as const).map((key) => (
+                <ColorPickerRow 
+                  key={key}
+                  label={key.charAt(0).toUpperCase() + key.slice(1).replace(/[A-Z]/g, ' $&')} 
+                  value={tempTheme[key]} 
+                  onPress={() => setEditingKey(editingKey === key ? null : key)}
+                  active={editingKey === key}
+                  themeColors={themeColors}
+                />
+              ))}
+
+              {editingKey && (
+                <View style={styles.pickerContainer}>
+                  <ActualColorPicker 
+                    key={editingKey}
+                    initialColor={tempTheme[editingKey]} 
+                    onChange={onColorChange}
+                  >
+                    <Panel1 style={styles.pickerPanel} />
+                    <HueCircular style={styles.pickerWheel} />
+                    <BrightnessSlider style={styles.pickerSlider} />
+                    <Preview hideInitialColor />
+                  </ActualColorPicker>
+                </View>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.applyButton, { backgroundColor: themeColors.tint }]}
+              onPress={() => onApply(tempTheme)}
+            >
+              <Check size={20} color={themeColors.background} style={{ marginRight: 8 }} />
+              <Text style={[styles.applyButtonText, { color: themeColors.background }]}>Apply Custom Theme</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+function AccentPickerModal({ 
+  visible, 
+  onClose, 
+  initialAccent, 
+  onApply,
+  themeColors,
+  colorScheme,
+  enableFancyAnimations 
+}: any) {
+  const [tempAccent, setTempAccent] = useState(initialAccent);
+
+  useEffect(() => {
+    if (visible) setTempAccent(initialAccent);
+  }, [visible, initialAccent]);
+
+  const onAccentChange = useCallback(({ hex }: { hex: string }) => {
+    'worklet';
+    if (hex && !hex.includes('NaN')) {
+      const safeHex = hex.startsWith('#') ? hex.slice(0, 7) : (hex.length >= 6 ? `#${hex.slice(0, 6)}` : hex);
+      runOnJS(setTempAccent)(safeHex);
+    }
+  }, []);
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          {enableFancyAnimations && Platform.OS !== 'web' && (
+            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          )}
+          <View style={[
+            styles.modalContent, 
+            { backgroundColor: themeColors.background, borderColor: themeColors.border, borderWidth: 1 },
+            enableFancyAnimations && { backgroundColor: themeColors.background + 'CC' }
+          ]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pick Accent Color</Text>
+              <TouchableOpacity onPress={onClose}>
+                <X color={themeColors.text} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pickerContainer}>
+              <ActualColorPicker 
+                initialColor={tempAccent} 
+                onChange={onAccentChange}
+              >
+                <Panel1 style={styles.pickerPanel} />
+                <HueCircular style={styles.pickerWheel} />
+                <BrightnessSlider style={styles.pickerSlider} />
+                <Preview hideInitialColor />
+              </ActualColorPicker>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.applyButton, { backgroundColor: tempAccent }]}
+              onPress={() => onApply(tempAccent)}
+            >
+              <Check size={20} color={getContrastColor(tempAccent)} style={{ marginRight: 8 }} />
+              <Text style={[styles.applyButtonText, { color: getContrastColor(tempAccent) }]}>Apply Accent</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
 
 export default function SettingsScreen() {
   const { 
@@ -37,54 +201,17 @@ export default function SettingsScreen() {
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showAccentPicker, setShowAccentPicker] = useState(false);
-  const [tempTheme, setTempTheme] = useState<CustomTheme>(customTheme);
-  const [editingKey, setEditingKey] = useState<keyof CustomTheme | null>(null);
-  const [tempAccent, setTempAccent] = useState(customTheme.tint);
 
-  // Sync tempTheme when modal opens
-  useEffect(() => {
-    if (showThemeModal) {
-      // Ensure all values are safe hex strings
-      const getSafeHex = (hex: string, fallback: string) => {
-        if (typeof hex === 'string' && hex.startsWith('#') && hex.length >= 7 && !hex.includes('NaN')) {
-          return hex.slice(0, 7);
-        }
-        return fallback;
-      };
-
-      setTempTheme({
-        background: getSafeHex(customTheme.background, '#ffffff'),
-        text: getSafeHex(customTheme.text, '#000000'),
-        secondaryText: getSafeHex(customTheme.secondaryText, '#666666'),
-        tint: getSafeHex(customTheme.tint, '#0f172a'),
-      });
-    }
-  }, [showThemeModal, customTheme]);
-
-  const updateColor = useCallback((hex: string) => {
-    // reanimated-color-picker can sometimes return colors with alpha or NaN during rapid movement
-    if (editingKey && hex && typeof hex === 'string' && !hex.includes('NaN')) {
-      // Ensure we only store the 6-digit hex to avoid malformed color strings (like #RRGGBBAA15)
-      const safeHex = hex.startsWith('#') ? hex.slice(0, 7) : hex;
-      setTempTheme(prev => ({ ...prev, [editingKey]: safeHex }));
-    }
-  }, [editingKey]);
-
-  const onColorChange = ({ hex }: { hex: string }) => {
-    'worklet';
-    runOnJS(updateColor)(hex);
-  };
-
-  const handleApplyCustomTheme = () => {
-    setCustomTheme(tempTheme);
+  const handleApplyCustomTheme = (theme: CustomTheme) => {
+    setCustomTheme(theme);
     setAccentKey('custom');
     setShowThemeModal(false);
   };
 
-  const handleApplyCustomAccent = () => {
+  const handleApplyCustomAccent = (accent: string) => {
     setCustomTheme({
       ...customTheme,
-      tint: tempAccent
+      tint: accent
     });
     setAccentKey('custom');
     setShowAccentPicker(false);
@@ -183,7 +310,6 @@ export default function SettingsScreen() {
               }
             ]}
             onPress={() => {
-              setTempAccent(customTheme.tint);
               setShowAccentPicker(true);
             }}
           >
@@ -294,135 +420,28 @@ export default function SettingsScreen() {
         <Text style={styles.aboutText}>
           Echo is a minimalist lyric editor for syncing and publishing lyrics to LRCLIB.
         </Text>
-        <Text style={[styles.version, { color: themeColors.secondaryText }]}>Version 1.0.1</Text>
+        <Text style={[styles.version, { color: themeColors.secondaryText }]}>Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.3'}</Text>
       </View>
 
-      {/* Theme Maker Modal */}
-      <Modal visible={showThemeModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          )}
-          <View style={[
-            styles.modalContent, 
-            { backgroundColor: themeColors.background, borderColor: themeColors.border, borderWidth: 1 },
-            enableFancyAnimations && { backgroundColor: themeColors.background + 'CC' }
-          ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Custom Theme Maker</Text>
-              <TouchableOpacity onPress={() => setShowThemeModal(false)}>
-                <X color={themeColors.text} size={24} />
-              </TouchableOpacity>
-            </View>
+      <CustomThemeModal 
+        visible={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        initialTheme={customTheme}
+        onApply={handleApplyCustomTheme}
+        themeColors={themeColors}
+        colorScheme={colorScheme}
+        enableFancyAnimations={enableFancyAnimations}
+      />
 
-            <View style={[styles.themePreview, { backgroundColor: tempTheme.background, borderColor: (tempTheme.secondaryText?.slice(0, 7) || tempTheme.secondaryText) + '33' }]}>
-              <Text style={{ color: tempTheme.text, fontSize: 18, fontWeight: 'bold' }}>Theme Preview</Text>
-              <Text style={{ color: tempTheme.secondaryText, fontSize: 14 }}>This is how your text will look.</Text>
-              <View style={[styles.previewPill, { backgroundColor: tempTheme.tint }]}>
-                <Text style={{ color: tempTheme.background, fontWeight: 'bold' }}>ACTIVE TINT</Text>
-              </View>
-            </View>
-
-            <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
-              <ColorPickerRow 
-                label="Background" 
-                value={tempTheme.background} 
-                onPress={() => setEditingKey(editingKey === 'background' ? null : 'background')}
-                active={editingKey === 'background'}
-                themeColors={themeColors}
-              />
-              <ColorPickerRow 
-                label="Text" 
-                value={tempTheme.text} 
-                onPress={() => setEditingKey(editingKey === 'text' ? null : 'text')}
-                active={editingKey === 'text'}
-                themeColors={themeColors}
-              />
-              <ColorPickerRow 
-                label="Secondary Text" 
-                value={tempTheme.secondaryText} 
-                onPress={() => setEditingKey(editingKey === 'secondaryText' ? null : 'secondaryText')}
-                active={editingKey === 'secondaryText'}
-                themeColors={themeColors}
-              />
-              <ColorPickerRow 
-                label="Tint / Accent" 
-                value={tempTheme.tint} 
-                onPress={() => setEditingKey(editingKey === 'tint' ? null : 'tint')}
-                active={editingKey === 'tint'}
-                themeColors={themeColors}
-              />
-
-              {editingKey && (
-                <View style={styles.pickerContainer}>
-                  <ActualColorPicker 
-                    value={tempTheme[editingKey]} 
-                    onChange={onColorChange}
-                  >
-                    <Panel1 style={styles.pickerPanel} />
-                    <HueCircular style={styles.pickerWheel} />
-                    <BrightnessSlider style={styles.pickerSlider} />
-                    <Preview hideInitialColor />
-                  </ActualColorPicker>
-                </View>
-              )}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: themeColors.tint }]}
-              onPress={handleApplyCustomTheme}
-            >
-              <Check size={20} color={themeColors.background} style={{ marginRight: 8 }} />
-              <Text style={[styles.applyButtonText, { color: themeColors.background }]}>Apply Custom Theme</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Accent Picker Modal */}
-      <Modal visible={showAccentPicker} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          )}
-          <View style={[
-            styles.modalContent, 
-            { backgroundColor: themeColors.background, borderColor: themeColors.border, borderWidth: 1 },
-            enableFancyAnimations && { backgroundColor: themeColors.background + 'CC' }
-          ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Pick Accent Color</Text>
-              <TouchableOpacity onPress={() => setShowAccentPicker(false)}>
-                <X color={themeColors.text} size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.pickerContainer}>
-              <ActualColorPicker 
-                value={tempAccent} 
-                onChange={({ hex }: any) => {
-                  'worklet';
-                  if (hex && !hex.includes('NaN')) {
-                    runOnJS(setTempAccent)(hex.slice(0, 7));
-                  }
-                }}
-              >
-                <HueCircular style={styles.pickerWheel} />
-                <BrightnessSlider style={styles.pickerSlider} />
-                <Preview hideInitialColor />
-              </ActualColorPicker>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: tempAccent }]}
-              onPress={handleApplyCustomAccent}
-            >
-              <Check size={20} color={getContrastColor(tempAccent)} style={{ marginRight: 8 }} />
-              <Text style={[styles.applyButtonText, { color: getContrastColor(tempAccent) }]}>Apply Accent</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <AccentPickerModal 
+        visible={showAccentPicker}
+        onClose={() => setShowAccentPicker(false)}
+        initialAccent={customTheme.tint}
+        onApply={handleApplyCustomAccent}
+        themeColors={themeColors}
+        colorScheme={colorScheme}
+        enableFancyAnimations={enableFancyAnimations}
+      />
     </ScrollView>
   );
 }
