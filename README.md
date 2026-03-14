@@ -9,6 +9,7 @@
   <a href="https://keepandroidopen.org/open-letter" style="color: #ffdd44;">open letter</a>
 </div>
 <br>
+
 > [!IMPORTANT]
 > **Early Access**: This project is currently in early access. You may encounter bugs or incomplete features. Please report any issues you find!
 
