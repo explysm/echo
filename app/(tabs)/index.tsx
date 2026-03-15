@@ -64,6 +64,7 @@ import { BlurView } from 'expo-blur';
 
 import { Text, View, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
+import { LayoutRenderer } from '@/lib/layouts';
 import {
   LyricLine,
   formatLyricsToLRC,
@@ -513,7 +514,8 @@ const triggerHaptic = (type: 'light' | 'medium' | 'success') => {
 };
 
 export default function EditorScreen() {
-  const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations } = useAppSettings();
+  const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, layoutPreset } = useAppSettings();
+  const layoutsEnabled = process.env.EXPO_PUBLIC_LAYOUTS_ENABLED === 'true';
   const theme = useTheme();
   const { registerLayout, isVisible: isTutorialVisible, currentStep, steps } = useTutorial();
 

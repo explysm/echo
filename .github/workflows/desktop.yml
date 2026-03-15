@@ -1,0 +1,152 @@
+name: Build Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env file
+        run: |
+          cat .public-env > .env
+          echo "EXPO_PUBLIC_BUILD_TIME=$(date +%s)" >> .env
+
+      - name: Expo Export (Web)
+        run: npx expo export --platform web
+        env:
+          EXPO_PUBLIC_BASE_URL: /echo
+          EXPO_PUBLIC_LAYOUTS_ENABLED: "true"
+
+      - name: Build Tauri App (Linux)
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ github.ref_name }}
+          tagName: ${{ github.ref_name }}
+          releaseName: Echo ${{ github.ref_name }}
+          releaseBody: "Echo Desktop App"
+          releaseDraft: false
+          prerelease: false
+          distPath: dist
+          bundleName: Echo
+          bundleIdentifier: dev.explysm.echo
+          tauriVersion: 2
+          args: --target x86_64-unknown-linux-gnu
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-linux
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+
+  build-windows:
+    permissions:
+      contents: read
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env file
+        run: |
+          type .public-env > .env
+          echo EXPO_PUBLIC_BUILD_TIME=%date:~10,4%%date:~4,2%%date:~7,2% >> .env
+
+      - name: Expo Export (Web)
+        run: npx expo export --platform web
+        env:
+          EXPO_PUBLIC_BASE_URL: /echo
+          EXPO_PUBLIC_LAYOUTS_ENABLED: "true"
+
+      - name: Build Tauri App (Windows)
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          distPath: dist
+          bundleName: Echo
+          bundleIdentifier: dev.explysm.echo
+          tauriVersion: 2
+          args: --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-windows
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+
+  release:
+    permissions:
+      contents: write
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: echo-linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: echo-windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.AppImage
+            *.exe
+          name: Echo ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('manual-{0}', github.sha) }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

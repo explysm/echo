@@ -5,6 +5,8 @@ import { AccentKey, CustomTheme } from '@/constants/Theme';
 
 type Theme = 'light' | 'dark' | 'system';
 
+export type LayoutPreset = 'default' | 'side-by-side' | 'editor-focused' | 'player-focused';
+
 interface AppSettingsContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -22,6 +24,8 @@ interface AppSettingsContextType {
   setHasCompletedTutorial: (value: boolean) => void;
   alwaysShowTutorial: boolean;
   setAlwaysShowTutorial: (value: boolean) => void;
+  layoutPreset: LayoutPreset;
+  setLayoutPreset: (preset: LayoutPreset) => void;
   colorScheme: 'light' | 'dark';
   isInitialized: boolean;
 }
@@ -35,6 +39,7 @@ const STORAGE_KEYS = {
   FANCY_ANIMATIONS: '@echo_settings_fancy_animations',
   HAS_COMPLETED_TUTORIAL: '@echo_settings_has_completed_tutorial',
   ALWAYS_SHOW_TUTORIAL: '@echo_settings_always_show_tutorial',
+  LAYOUT_PRESET: '@echo_settings_layout_preset',
 };
 
 const AppSettingsContext = createContext<AppSettingsContextType | undefined>(undefined);
@@ -56,6 +61,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [enableFancyAnimations, setEnableFancyAnimationsState] = useState(false);
   const [hasCompletedTutorial, setHasCompletedTutorialState] = useState(false);
   const [alwaysShowTutorial, setAlwaysShowTutorialState] = useState(false);
+  const [layoutPreset, setLayoutPresetState] = useState<LayoutPreset>('default');
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -68,7 +74,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           savedCustomTheme,
           savedFancy,
           savedHasCompletedTutorial,
-          savedAlwaysShowTutorial
+          savedAlwaysShowTutorial,
+          savedLayoutPreset
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
           AsyncStorage.getItem(STORAGE_KEYS.ACCENT),
@@ -78,6 +85,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           AsyncStorage.getItem(STORAGE_KEYS.FANCY_ANIMATIONS),
           AsyncStorage.getItem(STORAGE_KEYS.HAS_COMPLETED_TUTORIAL),
           AsyncStorage.getItem(STORAGE_KEYS.ALWAYS_SHOW_TUTORIAL),
+          AsyncStorage.getItem(STORAGE_KEYS.LAYOUT_PRESET),
         ]);
 
         if (savedTheme) setThemeState(savedTheme as Theme);
@@ -87,6 +95,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         if (savedFancy) setEnableFancyAnimationsState(savedFancy === 'true');
         if (savedHasCompletedTutorial) setHasCompletedTutorialState(savedHasCompletedTutorial === 'true');
         if (savedAlwaysShowTutorial) setAlwaysShowTutorialState(savedAlwaysShowTutorial === 'true');
+        if (savedLayoutPreset) setLayoutPresetState(savedLayoutPreset as LayoutPreset);
         if (savedRewind) {
           const val = parseFloat(savedRewind);
           if (!isNaN(val)) setRewindAmountState(val);
@@ -141,6 +150,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     await AsyncStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_TUTORIAL, value.toString());
   };
 
+  const setLayoutPreset = async (value: LayoutPreset) => {
+    setLayoutPresetState(value);
+    await AsyncStorage.setItem(STORAGE_KEYS.LAYOUT_PRESET, value);
+  };
+
   const colorScheme = theme === 'system' ? systemColorScheme : theme;
 
   return (
@@ -162,6 +176,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         setHasCompletedTutorial,
         alwaysShowTutorial,
         setAlwaysShowTutorial,
+        layoutPreset,
+        setLayoutPreset,
         colorScheme,
         isInitialized
       }}

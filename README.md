@@ -46,6 +46,20 @@ Echo is a minimalist, open-source lyric editor built with Expo and TypeScript, d
    npx expo start
    ```
 
+## Install
+
+### Android APK
+Download the latest APK from the [Releases](https://github.com/explysm/echo/releases) page.
+
+### Desktop (Windows & Linux)
+- **Windows**: Download `Echo_x.x.x_x64-setup.exe` from the [Releases](https://github.com/explysm/echo/releases) page.
+- **Linux**: Download `Echo_x.x.x_amd64.AppImage` from the [Releases](https://github.com/explysm/echo/releases) page.
+  - Make it executable: `chmod +x Echo_x.x.x_amd64.AppImage`
+  - Run: `./Echo_x.x.x_amd64.AppImage`
+
+### Web (PWA)
+Access the web version at: https://explysm.github.io/echo
+
 ## Building & Releasing
 
 ### Android APK

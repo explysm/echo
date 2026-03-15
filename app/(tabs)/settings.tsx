@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Alert, Platform } from 'react-native';
-import { Moon, Sun, Monitor, Check, X, ChevronRight, Trash2, Sparkles, Palette } from 'lucide-react-native';
+import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Alert, Platform, useWindowDimensions } from 'react-native';
+import { Moon, Sun, Monitor, Check, X, ChevronRight, Trash2, Sparkles, Palette, Layout, Columns, AlignStartHorizontal, AlignEndHorizontal } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import ColorPicker, { HueCircular, Panel1, Preview, BrightnessSlider } from 'reanimated-color-picker';
 import { runOnJS } from 'react-native-reanimated';
@@ -13,7 +13,7 @@ const ActualColorPicker: any = (ColorPicker as any).ColorPicker || ColorPicker;
 
 
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
-import { useAppSettings } from '@/context/AppSettingsContext';
+import { useAppSettings, LayoutPreset } from '@/context/AppSettingsContext';
 import { ACCENT_COLORS, CustomTheme } from '@/constants/Theme';
 
 // --- Sub-components to isolate state and prevent re-renders during color picking ---
@@ -179,6 +179,102 @@ function AccentPickerModal({
   );
 }
 
+function LayoutPickerModal({
+  visible,
+  onClose,
+  currentPreset,
+  onApply,
+  themeColors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  currentPreset: LayoutPreset;
+  onApply: (preset: LayoutPreset) => void;
+  themeColors: any;
+}) {
+  const presets: { id: LayoutPreset; name: string; description: string; icon: React.ReactNode }[] = [
+    { 
+      id: 'default', 
+      name: 'Default', 
+      description: 'Single column, editor-focused',
+      icon: <AlignStartHorizontal size={24} color={themeColors.tint} />
+    },
+    { 
+      id: 'side-by-side', 
+      name: 'Side by Side', 
+      description: 'Editor, player, and syncer in a row',
+      icon: <Columns size={24} color={themeColors.tint} />
+    },
+    { 
+      id: 'editor-focused', 
+      name: 'Editor Focused', 
+      description: 'Large editor with small player',
+      icon: <AlignStartHorizontal size={24} color={themeColors.tint} />
+    },
+    { 
+      id: 'player-focused', 
+      name: 'Player Focused', 
+      description: 'Large player with small editor',
+      icon: <AlignEndHorizontal size={24} color={themeColors.tint} />
+    },
+  ];
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.modalOverlay}>
+        {(
+          <BlurView intensity={25} tint={themeColors.background === '#ffffff' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
+        )}
+        <View style={[
+          styles.modalContent, 
+          { backgroundColor: themeColors.background, borderColor: themeColors.border }
+        ]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Choose Layout</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X color={themeColors.text} size={24} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={{ maxHeight: 400 }}>
+            {presets.map((preset) => (
+              <TouchableOpacity
+                key={preset.id}
+                style={[
+                  styles.layoutOption,
+                  { 
+                    borderColor: themeColors.border,
+                    backgroundColor: currentPreset === preset.id ? themeColors.tint + '15' : 'transparent'
+                  }
+                ]}
+                onPress={() => {
+                  onApply(preset.id);
+                  onClose();
+                }}
+              >
+                <View style={styles.layoutOptionIcon}>
+                  {preset.icon}
+                </View>
+                <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                  <Text style={[styles.layoutOptionName, { color: themeColors.text }]}>
+                    {preset.name}
+                  </Text>
+                  <Text style={[styles.layoutOptionDesc, { color: themeColors.secondaryText }]}>
+                    {preset.description}
+                  </Text>
+                </View>
+                {currentPreset === preset.id && (
+                  <Check size={20} color={themeColors.tint} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function SettingsScreen() {
   const { 
     theme, 
@@ -195,12 +291,15 @@ export default function SettingsScreen() {
     setEnableFancyAnimations,
     alwaysShowTutorial,
     setAlwaysShowTutorial,
+    layoutPreset,
+    setLayoutPreset,
     colorScheme 
   } = useAppSettings();
   const themeColors = useTheme();
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showAccentPicker, setShowAccentPicker] = useState(false);
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
 
   const handleApplyCustomTheme = (theme: CustomTheme) => {
     setCustomTheme(theme);
@@ -381,6 +480,30 @@ export default function SettingsScreen() {
             thumbColor="#fff"
           />
         </View>
+
+        <View style={[styles.settingRow, { marginTop: 20 }]}>
+          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.settingLabel}>Layout</Text>
+              <Layout size={14} color={themeColors.tint} />
+            </View>
+            <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
+              Choose how editor, player, and syncer panels are arranged.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.selectButton, { borderColor: themeColors.border }]}
+            onPress={() => setShowLayoutPicker(true)}
+          >
+            <Text style={[styles.selectButtonText, { color: themeColors.text }]}>
+              {layoutPreset === 'default' ? 'Default' : 
+               layoutPreset === 'side-by-side' ? 'Side by Side' :
+               layoutPreset === 'editor-focused' ? 'Editor Focused' :
+               layoutPreset === 'player-focused' ? 'Player Focused' : layoutPreset}
+            </Text>
+            <ChevronRight size={18} color={themeColors.secondaryText} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -441,6 +564,14 @@ export default function SettingsScreen() {
         themeColors={themeColors}
         colorScheme={colorScheme}
         enableFancyAnimations={enableFancyAnimations}
+      />
+
+      <LayoutPickerModal 
+        visible={showLayoutPicker}
+        onClose={() => setShowLayoutPicker(false)}
+        currentPreset={layoutPreset}
+        onApply={setLayoutPreset}
+        themeColors={themeColors}
       />
     </ScrollView>
   );
@@ -697,5 +828,43 @@ const styles = StyleSheet.create({
   },
   eraseButtonText: {
     fontWeight: 'bold',
+  },
+  selectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  selectButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  layoutOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    gap: 16,
+  },
+  layoutOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  layoutOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  layoutOptionDesc: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });
