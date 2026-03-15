@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Alert, Platform, useWindowDimensions } from 'react-native';
-import { Moon, Sun, Monitor, Check, X, ChevronRight, Trash2, Sparkles, Palette, Layout, Columns, AlignStartHorizontal, AlignEndHorizontal, Sliders } from 'lucide-react-native';
+import { Moon, Sun, Monitor, Check, X, ChevronRight, ChevronLeft, Trash2, Sparkles, Palette, Layout, Columns, AlignStartHorizontal, AlignEndHorizontal, Sliders } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import ColorPicker, { HueCircular, Panel1, Preview, BrightnessSlider } from 'reanimated-color-picker';
 import { runOnJS } from 'react-native-reanimated';

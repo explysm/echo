@@ -65,6 +65,7 @@ import { BlurView } from 'expo-blur';
 import { Text, View, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
 import { LayoutRenderer } from '@/lib/layouts';
+import { EditorContent } from '@/components/EditorContent';
 import {
   LyricLine,
   formatLyricsToLRC,
@@ -514,7 +515,7 @@ const triggerHaptic = (type: 'light' | 'medium' | 'success') => {
 };
 
 export default function EditorScreen() {
-  const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, layoutPreset } = useAppSettings();
+  const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, layoutPreset, customLayoutConfig } = useAppSettings();
   const layoutsEnabled = process.env.EXPO_PUBLIC_LAYOUTS_ENABLED === 'true';
   const theme = useTheme();
   const { registerLayout, isVisible: isTutorialVisible, currentStep, steps } = useTutorial();
@@ -1467,120 +1468,21 @@ export default function EditorScreen() {
       </View>
 
       {/* Content Area */}
-      <View style={[styles.contentArea, { borderColor: theme.border }]}>
-        {editorMode === 'sync' ? (
-          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <TutorialView 
-              style={[styles.offsetRow, { height: 40, justifyContent: 'center' }]}
-              targetKey="offset_controls"
-            >
-              <Text style={[styles.offsetLabel, { color: theme.secondaryText }]}>Global Offset:</Text>
-              <TouchableOpacity style={[styles.offsetButton, { borderColor: theme.border }]} onPress={() => applyOffset(-100)}>
-                <Text style={{ color: theme.tint, fontSize: 12 }}>-100ms</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.offsetButton, { borderColor: theme.border }]} onPress={() => applyOffset(100)}>
-                <Text style={{ color: theme.tint, fontSize: 12 }}>+100ms</Text>
-              </TouchableOpacity>
-            </TutorialView>
-            <FlatList
-              data={lyrics}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => (
-              <SyncLyricLine
-                line={item}
-                isActive={currentLineIndex === index}
-                isExpanded={expandedLines.has(item.id)}
-                rhythmMode={rhythmMode}
-                onToggleExpand={handleToggleExpand}
-                onToggleRhythm={() => setRhythmMode(!rhythmMode)}
-                onPress={handleEditLine}
-                onDelete={deleteLyricLine}
-                onSeek={onSliderValueChange}
-                onSyllableSync={handleSyllableSync}
-                currentTime={position}
-                theme={theme}
-              />
-            )}
-            ListEmptyComponent={
-              <Text style={[styles.emptyHint, { color: theme.secondaryText }]}>
-                No lyrics yet. Use the + button to start syncing.
-              </Text>
-            }
-            ListFooterComponent={<View style={{ height: 100 }} />}
-            removeClippedSubviews={true}
-            initialNumToRender={15}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-          />
-          </View>
-        ) : editorMode === 'raw' ? (
-          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <View style={styles.rawToolbar}>
-              <View style={{ flexDirection: 'row', gap: 10, backgroundColor: 'transparent' }}>
-                <TouchableOpacity 
-                  onPress={undo} 
-                  disabled={historyIndex === 0}
-                  style={[styles.toolButton, historyIndex === 0 && { opacity: 0.3 }]}
-                >
-                  <Undo2 size={20} color={theme.tint} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={redo} 
-                  disabled={historyIndex >= history.length - 1}
-                  style={[styles.toolButton, historyIndex >= history.length - 1 && { opacity: 0.3 }]}
-                >
-                  <Redo2 size={20} color={theme.tint} />
-                </TouchableOpacity>
-              </View>
-            </View>
-            <TextInput
-              style={[styles.rawInput, { color: theme.text }]}
-              multiline
-              value={rawLRC}
-              onChangeText={handleRawLRCChange}
-              placeholder="Paste raw LRC or plain text here..."
-              placeholderTextColor={theme.secondaryText}
-              textAlignVertical="top"
-            />
-          </View>
-        ) : (
-          <View style={styles.playerContainer}>
-             {lyrics.length === 0 ? (
-                <Text style={[styles.emptyHint, { color: theme.secondaryText }]}>
-                  No lyrics to play. Sync some first!
-                </Text>
-             ) : (
-                <ScrollView 
-                  ref={playerScrollRef}
-                  style={{ flex: 1 }}
-                  contentContainerStyle={styles.playerScrollContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {lyrics.map((line, index) => {
-                    const alignment = line.position === 'left' ? 'flex-start' : line.position === 'right' ? 'flex-end' : 'center';
-                    return (
-                      <View 
-                        key={line.id}
-                        onLayout={(e) => {
-                          lineHeights.current[index] = e.nativeEvent.layout.height;
-                        }}
-                        style={{ alignItems: alignment, width: '100%' }}
-                      >
-                        <AnimatedLyricLine 
-                          line={line} 
-                          isActive={currentLineIndex === index} 
-                          positionSV={positionSV}
-                          theme={theme}
-                        />
-                      </View>
-                    );
-                  })}
-                  <View style={{ height: 400 }} />
-                </ScrollView>
-             )}
-          </View>
-        )}
-      </View>
+      {layoutsEnabled && layoutPreset !== 'default' ? (
+        <LayoutRenderer
+          preset={layoutPreset}
+          customConfig={layoutPreset === 'custom' ? customLayoutConfig : undefined}
+          slots={{
+            editor: <View style={[styles.contentArea, { borderColor: theme.border, flex: 1 }]}><EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} /></View>,
+            player: <View style={[styles.contentArea, { borderColor: theme.border, flex: 1 }]}><EditorContent editorMode="play" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} /></View>,
+            syncer: <View style={[styles.contentArea, { borderColor: theme.border, flex: 1 }]}><EditorContent editorMode="sync" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} /></View>,
+          }}
+        />
+      ) : (
+        <View style={[styles.contentArea, { borderColor: theme.border }]}>
+          <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
+        </View>
+      )}
 
       {/* FAB */}
       {(editorMode === 'sync' && (sound || isTutorialFABStep)) && (
