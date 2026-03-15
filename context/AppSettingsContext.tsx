@@ -46,6 +46,22 @@ const STORAGE_KEYS = {
   CUSTOM_LAYOUT_CONFIG: '@echo_settings_custom_layout_config',
 };
 
+function migrateLayoutConfig(config: any): LayoutConfig {
+  if (!config.slots) return DEFAULT_CUSTOM_LAYOUT;
+  if (config.slots.controls !== undefined) return config;
+  if (config.slots.syncer !== undefined) {
+    return {
+      ...config,
+      slots: {
+        editor: config.slots.editor,
+        player: config.slots.player,
+        controls: config.slots.syncer,
+      },
+    };
+  }
+  return DEFAULT_CUSTOM_LAYOUT;
+}
+
 const AppSettingsContext = createContext<AppSettingsContextType | undefined>(undefined);
 
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
@@ -105,10 +121,15 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         if (savedLayoutPreset) setLayoutPresetState(savedLayoutPreset as LayoutPreset);
         if (savedCustomLayoutConfig) {
           try {
-            setCustomLayoutConfigState(JSON.parse(savedCustomLayoutConfig));
+            const parsed = JSON.parse(savedCustomLayoutConfig);
+            const migrated = migrateLayoutConfig(parsed);
+            setCustomLayoutConfigState(migrated);
           } catch (e) {
             console.error('Failed to parse custom layout config:', e);
+            setCustomLayoutConfigState(DEFAULT_CUSTOM_LAYOUT);
           }
+        } else {
+          setCustomLayoutConfigState(DEFAULT_CUSTOM_LAYOUT);
         }
         if (savedRewind) {
           const val = parseFloat(savedRewind);
