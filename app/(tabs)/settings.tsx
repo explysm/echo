@@ -204,25 +204,25 @@ function LayoutPickerModal({
     { 
       id: 'default', 
       name: 'Default', 
-      description: 'Single column, editor-focused',
+      description: 'Mobile: Single column editor',
       icon: <AlignStartHorizontal size={24} color={themeColors.tint} />
     },
     { 
       id: 'side-by-side', 
-      name: 'Side by Side', 
-      description: 'Editor, player, and syncer in a row',
+      name: 'Desktop', 
+      description: 'Editor left, Player+Controls right stacked',
       icon: <Columns size={24} color={themeColors.tint} />
     },
     { 
       id: 'editor-focused', 
-      name: 'Editor Focused', 
-      description: 'Large editor with small player',
+      name: 'Editor Focus', 
+      description: 'Large editor, small player+controls',
       icon: <AlignStartHorizontal size={24} color={themeColors.tint} />
     },
     { 
       id: 'player-focused', 
-      name: 'Player Focused', 
-      description: 'Large player with small editor',
+      name: 'Player Focus', 
+      description: 'Large player, small editor+controls',
       icon: <AlignEndHorizontal size={24} color={themeColors.tint} />
     },
     { 
@@ -233,7 +233,7 @@ function LayoutPickerModal({
     },
   ];
 
-  const toggleSlot = (slot: 'editor' | 'player' | 'syncer') => {
+  const toggleSlot = (slot: 'editor' | 'player' | 'controls') => {
     setTempConfig(prev => ({
       ...prev,
       slots: {
@@ -247,7 +247,7 @@ function LayoutPickerModal({
     }));
   };
 
-  const adjustFlex = (slot: 'editor' | 'player' | 'syncer', delta: number) => {
+  const adjustFlex = (slot: 'editor' | 'player' | 'controls', delta: number) => {
     setTempConfig(prev => ({
       ...prev,
       slots: {
@@ -353,9 +353,9 @@ function LayoutPickerModal({
                       <Text style={{ fontSize: 10, color: themeColors.tint }}>Player</Text>
                     </View>
                   )}
-                  {tempConfig.slots.syncer.visible && (
-                    <View style={{ flex: tempConfig.slots.syncer.flex, backgroundColor: themeColors.tint + '77', justifyContent: 'center', alignItems: 'center', borderRadius: 4 }}>
-                      <Text style={{ fontSize: 10, color: themeColors.tint }}>Syncer</Text>
+                  {tempConfig.slots.controls.visible && (
+                    <View style={{ flex: tempConfig.slots.controls.flex, backgroundColor: themeColors.tint + '77', justifyContent: 'center', alignItems: 'center', borderRadius: 4 }}>
+                      <Text style={{ fontSize: 10, color: themeColors.tint }}>Controls</Text>
                     </View>
                   )}
                 </View>

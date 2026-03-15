@@ -1475,7 +1475,7 @@ export default function EditorScreen() {
           slots={{
             editor: <View style={[styles.contentArea, { borderColor: theme.border, flex: 1 }]}><EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} /></View>,
             player: <View style={[styles.contentArea, { borderColor: theme.border, flex: 1 }]}><EditorContent editorMode="play" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} /></View>,
-            syncer: <View style={[styles.contentArea, { borderColor: theme.border, flex: 1 }]}><EditorContent editorMode="sync" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} /></View>,
+            controls: <View style={[styles.audioControlsContainer, { borderColor: theme.border }]}><TutorialView style={styles.audioControls} targetKey="audio_controls"><TouchableOpacity onPress={pickAudio} style={[styles.fileButton, { borderColor: theme.border }]}><FileMusic color={theme.tint} size={24} /><View style={{ flex: 1 }}><Text style={styles.fileName} numberOfLines={1}>{audioFile ? audioFile.name : 'Load MP3'}</Text>{audioFile && <Text style={[styles.metaHint, { color: theme.secondaryText }]}>{artistName ? `${artistName} - ${trackName}` : 'No metadata found'}</Text>}</View></TouchableOpacity><View style={styles.sliderRow}><Slider style={{ flex: 1, height: 40 }} minimumValue={0} maximumValue={duration || 1} value={position} onSlidingComplete={onSliderValueChange} minimumTrackTintColor={theme.tint} maximumTrackTintColor={theme.border} thumbTintColor={theme.tint} /><Text style={[styles.timeText, { color: theme.secondaryText }]}>{formatTime(position)} / {formatTime(duration)}</Text></View><View style={styles.playbackButtons}><TouchableOpacity onPress={() => setShowRateModal(true)} style={styles.controlButton}><Gauge color={theme.tint} size={24} /><Text style={[styles.controlButtonText, { color: theme.tint }]}>{playbackRate.toFixed(2)}x</Text></TouchableOpacity><TouchableOpacity onPress={togglePlayback} disabled={!sound}>{isPlaying ? <Pause color={theme.tint} size={32} /> : <Play color={theme.tint} size={32} />}</TouchableOpacity><TouchableOpacity onPress={stopPlayback} disabled={!sound}><Square color={theme.tint} size={32} /></TouchableOpacity><TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.controlButton}><Search color={theme.tint} size={24} /></TouchableOpacity></View></TutorialView></View>,
           }}
         />
       ) : (
@@ -1943,6 +1943,13 @@ const styles = StyleSheet.create({
   audioControls: {
     marginBottom: 20,
     gap: 10,
+  },
+  audioControlsContainer: {
+    flex: 1,
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    margin: 4,
   },
   fileButton: {
     flexDirection: 'row',

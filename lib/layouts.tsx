@@ -1,15 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
-export type LayoutSlot = 'editor' | 'player' | 'syncer';
+export type LayoutSlot = 'editor' | 'player' | 'controls';
 
 export interface LayoutConfig {
   slots: {
     editor: { visible: boolean; flex: number };
     player: { visible: boolean; flex: number };
-    syncer: { visible: boolean; flex: number };
+    controls: { visible: boolean; flex: number };
   };
   direction: 'column' | 'row';
+  rightColumn?: 'vertical' | 'horizontal';
 }
 
 export const LAYOUT_PRESETS: Record<string, LayoutConfig> = {
@@ -17,7 +18,7 @@ export const LAYOUT_PRESETS: Record<string, LayoutConfig> = {
     slots: {
       editor: { visible: true, flex: 1 },
       player: { visible: false, flex: 0 },
-      syncer: { visible: false, flex: 0 },
+      controls: { visible: false, flex: 0 },
     },
     direction: 'column',
   },
@@ -25,25 +26,28 @@ export const LAYOUT_PRESETS: Record<string, LayoutConfig> = {
     slots: {
       editor: { visible: true, flex: 1 },
       player: { visible: true, flex: 1 },
-      syncer: { visible: true, flex: 1 },
+      controls: { visible: true, flex: 1 },
     },
     direction: 'row',
+    rightColumn: 'vertical',
   },
   'editor-focused': {
     slots: {
       editor: { visible: true, flex: 2 },
       player: { visible: true, flex: 1 },
-      syncer: { visible: false, flex: 0 },
+      controls: { visible: true, flex: 1 },
     },
-    direction: 'column',
+    direction: 'row',
+    rightColumn: 'vertical',
   },
   'player-focused': {
     slots: {
       editor: { visible: true, flex: 1 },
       player: { visible: true, flex: 2 },
-      syncer: { visible: false, flex: 0 },
+      controls: { visible: true, flex: 1 },
     },
-    direction: 'column',
+    direction: 'row',
+    rightColumn: 'vertical',
   },
 };
 
@@ -51,15 +55,16 @@ export const DEFAULT_CUSTOM_LAYOUT: LayoutConfig = {
   slots: {
     editor: { visible: true, flex: 1 },
     player: { visible: true, flex: 1 },
-    syncer: { visible: false, flex: 0 },
+    controls: { visible: true, flex: 1 },
   },
   direction: 'row',
+  rightColumn: 'vertical',
 };
 
 export interface LayoutSlots {
   editor: React.ReactNode;
   player: React.ReactNode;
-  syncer: React.ReactNode;
+  controls: React.ReactNode;
 }
 
 interface LayoutRendererProps {
@@ -73,12 +78,30 @@ export function LayoutRenderer({ preset, customConfig, slots }: LayoutRendererPr
   const config = isCustom && customConfig ? customConfig : (LAYOUT_PRESETS[preset || 'default'] || LAYOUT_PRESETS.default);
   const isRow = config.direction === 'row';
 
-  const containerStyle = isRow
-    ? styles.rowContainer
-    : styles.columnContainer;
+  if (isRow && config.rightColumn === 'vertical') {
+    return (
+      <View style={styles.rowContainer}>
+        <View style={[styles.slot, { flex: config.slots.editor.flex }]}>
+          {slots.editor}
+        </View>
+        <View style={styles.columnContainer}>
+          {config.slots.player.visible && (
+            <View style={[styles.slot, { flex: config.slots.player.flex }]}>
+              {slots.player}
+            </View>
+          )}
+          {config.slots.controls.visible && (
+            <View style={[styles.slot, { flex: config.slots.controls.flex }]}>
+              {slots.controls}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <View style={containerStyle}>
+    <View style={isRow ? styles.rowContainer : styles.columnContainer}>
       {config.slots.editor.visible && (
         <View style={[styles.slot, { flex: config.slots.editor.flex }]}>
           {slots.editor}
@@ -89,9 +112,9 @@ export function LayoutRenderer({ preset, customConfig, slots }: LayoutRendererPr
           {slots.player}
         </View>
       )}
-      {config.slots.syncer.visible && (
-        <View style={[styles.slot, { flex: config.slots.syncer.flex }]}>
-          {slots.syncer}
+      {config.slots.controls.visible && (
+        <View style={[styles.slot, { flex: config.slots.controls.flex }]}>
+          {slots.controls}
         </View>
       )}
     </View>
