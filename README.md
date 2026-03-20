@@ -21,7 +21,7 @@ Echo is a minimalist, open-source lyric editor built with Expo and TypeScript, d
 - **Real-time Player**: Preview your synced lyrics with the built-in audio player.
 - **Instant Upload**: Submit your lyrics to LRCLIB via the integrated [LRCLIB UP](https://lrclibup.boidu.dev/) interface.
 - **Export to .lrc**: Save your work locally as standard LRC files.
-- **Cross-Platform**: Works as an Android APK and a static Web site (PWA supported).
+- **Cross-Platform**: Works as an Android APK, Linux AppImage, Windows EXE (setup) and through the [website.](https://explysm.github.io/echo)
 
 ## Screenshots
 <p align="center">
