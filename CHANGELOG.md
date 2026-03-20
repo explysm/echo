@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.4] - 2026-03-20
+## [1.0.4.1] - 2026-03-20
+
+### Fixed
+- Reanimated crash in color picker on Android when hex value is NaN
+- Focus outline (white border) appearing on text areas on Web
+- Version extraction logic in GitHub workflows to support hotfix tags (v1.x.x.x) and correctly match headers
 
 ### Added
+- Mode toggle (Raw/Sync/Play) and editor actions (Reset, Share) to the top of the editor in Desktop Layout
 - Tauri v2 initialization for desktop support (Windows & Linux)
 - New `src-tauri/` directory with standard Tauri v2 configuration
 - Automated icon generation step in `desktop.yml` workflow

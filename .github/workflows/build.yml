@@ -68,14 +68,44 @@ jobs:
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASS }}
 
+      - name: Extract release notes from changelog
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          # Escape dots for regex
+          ESCAPED_VER=$(echo $VERSION | sed 's/\./\\./g')
+          CONTENT=$(awk -v ver="$ESCAPED_VER" '
+            BEGIN { found=0 }
+            $0 ~ "## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)
+          
+          if [ -z "$CONTENT" ] || [ "$CONTENT" = "# Changelog" ]; then
+            CONTENT=$(awk '
+              BEGIN { found=0 }
+              /^\## \[Unreleased\]/ { found=1; next }
+              found && /^\## \[/ { exit }
+              found { print }
+            ' CHANGELOG.md)
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            echo "## Unreleased" >> $GITHUB_OUTPUT
+            echo "$CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            echo "$CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: android/app/build/outputs/apk/release/app-release.apk
           name: Echo ${{ github.ref_name }}
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('manual-{0}', github.sha) }}
+          body: ${{ steps.changelog.outputs.body }}
           draft: false
           prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

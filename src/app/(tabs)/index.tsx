@@ -1475,6 +1475,27 @@ export default function EditorScreen() {
       {showDesktopLayout ? (
         <View style={styles.desktopLayout}>
           <View style={[styles.desktopEditor, { borderColor: theme.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 }}>
+              <TouchableOpacity onPress={handleReset} style={{ padding: 4 }}>
+                <Trash2 color="#ff4444" size={24} />
+              </TouchableOpacity>
+              <View style={{ flex: 1, height: 40, justifyContent: 'center' }}>
+                <ModeTogglePill 
+                  currentMode={editorMode} 
+                  onModeChange={setEditorMode} 
+                  theme={theme} 
+                />
+              </View>
+              <TouchableOpacity 
+                onPress={() => {
+                  setShareStep('options');
+                  setShowShareModal(true);
+                }}
+                style={{ padding: 4 }}
+              >
+                <Share color={theme.tint} size={24} />
+              </TouchableOpacity>
+            </View>
             <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
           </View>
           <View style={styles.desktopRightColumn}>
@@ -2362,6 +2383,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
+    // @ts-ignore - Web only
+    outlineStyle: 'none',
   },
   modalButton: {
     padding: 16,

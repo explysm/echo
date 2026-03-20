@@ -48,7 +48,6 @@ jobs:
       - name: Expo Export (Web)
         run: npx expo export --platform web
         env:
-          EXPO_PUBLIC_BASE_URL: /echo
           EXPO_PUBLIC_DESKTOP: "true"
 
       - name: Install Tauri CLI
@@ -58,7 +57,7 @@ jobs:
         run: npx tauri icon assets/images/echo.png
 
       - name: Build Tauri App (Linux)
-        run: npx tauri build --target x86_64-unknown-linux-gnu
+        run: npx tauri build --target x86_64-unknown-linux-gnu --all-features
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -104,7 +103,6 @@ jobs:
       - name: Expo Export (Web)
         run: npx expo export --platform web
         env:
-          EXPO_PUBLIC_BASE_URL: /echo
           EXPO_PUBLIC_DESKTOP: "true"
 
       - name: Install Tauri CLI
@@ -114,7 +112,7 @@ jobs:
         run: npx tauri icon assets/images/echo.png
 
       - name: Build Tauri App (Windows)
-        run: npx tauri build --target x86_64-pc-windows-msvc
+        run: npx tauri build --target x86_64-pc-windows-msvc --all-features
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -148,10 +146,12 @@ jobs:
         id: changelog
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          CONTENT=$(awk -v ver="[$VERSION]" '
+          # Escape dots for regex
+          ESCAPED_VER=$(echo $VERSION | sed 's/\./\\./g')
+          CONTENT=$(awk -v ver="$ESCAPED_VER" '
             BEGIN { found=0 }
-            $0 == ver { found=1; next }
-            found && /^\## \[/ { exit }
+            $0 ~ "## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
             found { print }
           ' CHANGELOG.md)
           

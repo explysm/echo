@@ -37,8 +37,15 @@ function CustomThemeModal({
   const onColorChange = useCallback(({ hex }: { hex: string }) => {
     'worklet';
     if (hex && !hex.includes('NaN')) {
-      const safeHex = hex.startsWith('#') ? hex.slice(0, 7) : (hex.length >= 6 ? `#${hex.slice(0, 6)}` : hex);
-      runOnJS(setTempTheme)((prev: any) => ({ ...prev, [editingKey!]: safeHex }));
+      // Ensure hex is valid 7-character hex string
+      let safeHex = hex;
+      if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
+      if (safeHex.length > 7) safeHex = safeHex.slice(0, 7);
+      
+      runOnJS(setTempTheme)((prev: any) => {
+        if (!editingKey) return prev;
+        return { ...prev, [editingKey]: safeHex };
+      });
     }
   }, [editingKey]);
 
@@ -129,7 +136,9 @@ function AccentPickerModal({
   const onAccentChange = useCallback(({ hex }: { hex: string }) => {
     'worklet';
     if (hex && !hex.includes('NaN')) {
-      const safeHex = hex.startsWith('#') ? hex.slice(0, 7) : (hex.length >= 6 ? `#${hex.slice(0, 6)}` : hex);
+      let safeHex = hex;
+      if (!safeHex.startsWith('#')) safeHex = '#' + safeHex;
+      if (safeHex.length > 7) safeHex = safeHex.slice(0, 7);
       runOnJS(setTempAccent)(safeHex);
     }
   }, []);

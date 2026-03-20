@@ -385,6 +385,8 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 14,
     fontFamily: 'SpaceMono',
+    // @ts-ignore - Web only
+    outlineStyle: 'none',
   },
   playerContainer: {
     flex: 1,
