@@ -1348,115 +1348,118 @@ export default function EditorScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       
-      {/* Audio Controls */}
-      <TutorialView 
-        style={styles.audioControls}
-        targetKey="audio_controls"
-      >
-        <TouchableOpacity 
-          onPress={pickAudio} 
-          style={[styles.fileButton, { borderColor: theme.border }]}
-        >
-          <FileMusic color={theme.tint} size={24} />
-          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <Text style={styles.fileName} numberOfLines={1}>
-              {audioFile ? audioFile.name : 'Load MP3'}
-            </Text>
-            {audioFile && (
-              <Text style={[styles.metaHint, { color: theme.secondaryText }]}>
-                {artistName ? `${artistName} - ${trackName}` : 'No metadata found'}
-              </Text>
-            )}
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.sliderRow}>
-          <Slider
-            style={{ flex: 1, height: 40 }}
-            minimumValue={0}
-            maximumValue={duration || 1}
-            value={position}
-            onSlidingComplete={onSliderValueChange}
-            minimumTrackTintColor={theme.tint}
-            maximumTrackTintColor={theme.border}
-            thumbTintColor={theme.tint}
-          />
-          <Text style={[styles.timeText, { color: theme.secondaryText }]}>
-            {formatTime(position)} / {formatTime(duration)}
-          </Text>
-        </View>
-
-        <View style={styles.playbackButtons}>
-          <TouchableOpacity onPress={() => setShowRateModal(true)} style={styles.controlButton}>
-            <Gauge color={theme.tint} size={24} />
-            <Text style={[styles.controlButtonText, { color: theme.tint }]}>{playbackRate.toFixed(2)}x</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={togglePlayback} disabled={!sound}>
-            {isPlaying ? (
-              <Pause color={theme.tint} size={32} />
-            ) : (
-              <Play color={theme.tint} size={32} />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={stopPlayback} disabled={!sound}>
-            <Square color={theme.tint} size={32} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.controlButton}>
-            <Search color={theme.tint} size={24} />
-          </TouchableOpacity>
-        </View>
-
+      {/* Audio Controls - Hidden in Desktop Mode */}
+      {!showDesktopLayout && (
         <TutorialView 
-          style={styles.nudgeRow}
-          targetKey="nudge_controls"
-        >
-          <TouchableOpacity onPress={() => nudgePosition(-5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
-            <ChevronFirst color={theme.secondaryText} size={18} />
-            <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-5s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => nudgePosition(-1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
-            <Rewind color={theme.secondaryText} size={18} />
-            <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-1s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => nudgePosition(-0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
-             <Text style={[styles.nudgeText, { color: theme.tint }]}>-0.5s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
-             <Text style={[styles.nudgeText, { color: theme.tint }]}>+0.5s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => nudgePosition(1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
-            <FastForward color={theme.secondaryText} size={18} />
-            <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>+1s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => nudgePosition(5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
-            <ChevronLast color={theme.secondaryText} size={18} />
-            <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>+5s</Text>
-          </TouchableOpacity>
-        </TutorialView>
-      </TutorialView>
-
-      {/* Mode Toggle Pill */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity onPress={handleReset} style={{ padding: 4 }}>
-          <Trash2 color="#ff4444" size={24} />
-        </TouchableOpacity>
-        <TutorialView 
-          style={{ flex: 1, height: 40, justifyContent: 'center' }}
-          targetKey="mode_toggle"
-        >
-          <ModeTogglePill 
-            currentMode={editorMode} 
-            onModeChange={setEditorMode} 
-            theme={theme} 
-          />
-        </TutorialView>
-        <TutorialView 
-          targetKey="share_button"
+          style={styles.audioControls}
+          targetKey="audio_controls"
         >
           <TouchableOpacity 
-            onPress={() => {
+            onPress={pickAudio} 
+            style={[styles.fileButton, { borderColor: theme.border }]}
+          >
+            <FileMusic color={theme.tint} size={24} />
+            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+              <Text style={styles.fileName} numberOfLines={1}>
+                {audioFile ? audioFile.name : 'Load MP3'}
+              </Text>
+              {audioFile && (
+                <Text style={[styles.metaHint, { color: theme.secondaryText }]}>
+                  {artistName ? `${artistName} - ${trackName}` : 'No metadata found'}
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.sliderRow}>
+            <Slider
+              style={{ flex: 1, height: 40 }}
+              minimumValue={0}
+              maximumValue={duration || 1}
+              value={position}
+              onSlidingComplete={onSliderValueChange}
+              minimumTrackTintColor={theme.tint}
+              maximumTrackTintColor={theme.border}
+              thumbTintColor={theme.tint}
+            />
+            <Text style={[styles.timeText, { color: theme.secondaryText }]}>
+              {formatTime(position)} / {formatTime(duration)}
+            </Text>
+          </View>
+
+          <View style={styles.playbackButtons}>
+            <TouchableOpacity onPress={() => setShowRateModal(true)} style={styles.controlButton}>
+              <Gauge color={theme.tint} size={24} />
+              <Text style={[styles.controlButtonText, { color: theme.tint }]}>{playbackRate.toFixed(2)}x</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={togglePlayback} disabled={!sound}>
+              {isPlaying ? (
+                <Pause color={theme.tint} size={32} />
+              ) : (
+                <Play color={theme.tint} size={32} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={stopPlayback} disabled={!sound}>
+              <Square color={theme.tint} size={32} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.controlButton}>
+              <Search color={theme.tint} size={24} />
+            </TouchableOpacity>
+          </View>
+
+          <TutorialView 
+            style={styles.nudgeRow}
+            targetKey="nudge_controls"
+          >
+            <TouchableOpacity onPress={() => nudgePosition(-5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+              <ChevronFirst color={theme.secondaryText} size={18} />
+              <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-5s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nudgePosition(-1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+              <Rewind color={theme.secondaryText} size={18} />
+              <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-1s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nudgePosition(-0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+               <Text style={[styles.nudgeText, { color: theme.tint }]}>-0.5s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+               <Text style={[styles.nudgeText, { color: theme.tint }]}>+0.5s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nudgePosition(1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+              <FastForward color={theme.secondaryText} size={18} />
+              <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>+1s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nudgePosition(5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+              <ChevronLast color={theme.secondaryText} size={18} />
+              <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>+5s</Text>
+            </TouchableOpacity>
+          </TutorialView>
+        </TutorialView>
+      )}
+
+      {/* Mode Toggle Pill - Hidden in Desktop Mode */}
+      {!showDesktopLayout && (
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity onPress={handleReset} style={{ padding: 4 }}>
+            <Trash2 color="#ff4444" size={24} />
+          </TouchableOpacity>
+          <TutorialView 
+            style={{ flex: 1, height: 40, justifyContent: 'center' }}
+            targetKey="mode_toggle"
+          >
+            <ModeTogglePill 
+              currentMode={editorMode} 
+              onModeChange={setEditorMode} 
+              theme={theme} 
+            />
+          </TutorialView>
+          <TutorialView 
+            targetKey="share_button"
+          >
+            <TouchableOpacity 
+              onPress={() => {
               setShareStep('options');
               setShowShareModal(true);
             }}
@@ -1465,7 +1468,8 @@ export default function EditorScreen() {
             <Share color={theme.tint} size={24} />
           </TouchableOpacity>
         </TutorialView>
-      </View>
+        </View>
+      )}
 
       {/* Content Area */}
       {showDesktopLayout ? (
