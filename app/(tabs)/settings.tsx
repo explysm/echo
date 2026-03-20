@@ -444,7 +444,7 @@ export default function SettingsScreen() {
         <Text style={styles.aboutText}>
           Echo is a minimalist lyric editor for syncing and publishing lyrics to LRCLIB.
         </Text>
-        <Text style={[styles.version, { color: themeColors.secondaryText }]}>Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.3'}</Text>
+        <Text style={[styles.version, { color: themeColors.secondaryText }]}>Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.4'}</Text>
       </View>
 
       <CustomThemeModal 
