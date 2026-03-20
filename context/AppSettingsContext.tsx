@@ -22,6 +22,8 @@ interface AppSettingsContextType {
   setHasCompletedTutorial: (value: boolean) => void;
   alwaysShowTutorial: boolean;
   setAlwaysShowTutorial: (value: boolean) => void;
+  desktopMode: boolean;
+  setDesktopMode: (value: boolean) => void;
   colorScheme: 'light' | 'dark';
   isInitialized: boolean;
 }
@@ -35,6 +37,7 @@ const STORAGE_KEYS = {
   FANCY_ANIMATIONS: '@echo_settings_fancy_animations',
   HAS_COMPLETED_TUTORIAL: '@echo_settings_has_completed_tutorial',
   ALWAYS_SHOW_TUTORIAL: '@echo_settings_always_show_tutorial',
+  DESKTOP_MODE: '@echo_settings_desktop_mode',
 };
 
 const AppSettingsContext = createContext<AppSettingsContextType | undefined>(undefined);
@@ -56,6 +59,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [enableFancyAnimations, setEnableFancyAnimationsState] = useState(false);
   const [hasCompletedTutorial, setHasCompletedTutorialState] = useState(false);
   const [alwaysShowTutorial, setAlwaysShowTutorialState] = useState(false);
+  const [desktopMode, setDesktopModeState] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -68,7 +72,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           savedCustomTheme,
           savedFancy,
           savedHasCompletedTutorial,
-          savedAlwaysShowTutorial
+          savedAlwaysShowTutorial,
+          savedDesktopMode
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
           AsyncStorage.getItem(STORAGE_KEYS.ACCENT),
@@ -78,6 +83,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           AsyncStorage.getItem(STORAGE_KEYS.FANCY_ANIMATIONS),
           AsyncStorage.getItem(STORAGE_KEYS.HAS_COMPLETED_TUTORIAL),
           AsyncStorage.getItem(STORAGE_KEYS.ALWAYS_SHOW_TUTORIAL),
+          AsyncStorage.getItem(STORAGE_KEYS.DESKTOP_MODE),
         ]);
 
         if (savedTheme) setThemeState(savedTheme as Theme);
@@ -87,6 +93,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         if (savedFancy) setEnableFancyAnimationsState(savedFancy === 'true');
         if (savedHasCompletedTutorial) setHasCompletedTutorialState(savedHasCompletedTutorial === 'true');
         if (savedAlwaysShowTutorial) setAlwaysShowTutorialState(savedAlwaysShowTutorial === 'true');
+        if (savedDesktopMode) setDesktopModeState(savedDesktopMode === 'true');
         if (savedRewind) {
           const val = parseFloat(savedRewind);
           if (!isNaN(val)) setRewindAmountState(val);
@@ -141,6 +148,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     await AsyncStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_TUTORIAL, value.toString());
   };
 
+  const setDesktopMode = async (value: boolean) => {
+    setDesktopModeState(value);
+    await AsyncStorage.setItem(STORAGE_KEYS.DESKTOP_MODE, value.toString());
+  };
+
   const colorScheme = theme === 'system' ? systemColorScheme : theme;
 
   return (
@@ -162,6 +174,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         setHasCompletedTutorial,
         alwaysShowTutorial,
         setAlwaysShowTutorial,
+        desktopMode,
+        setDesktopMode,
         colorScheme,
         isInitialized
       }}

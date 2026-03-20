@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Alert, Platform } from 'react-native';
-import { Moon, Sun, Monitor, Check, X, ChevronRight, Trash2, Sparkles, Palette } from 'lucide-react-native';
+import { Moon, Sun, Monitor, Check, X, ChevronRight, ChevronLeft, Trash2, Sparkles, Palette, MonitorDot } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import ColorPicker, { HueCircular, Panel1, Preview, BrightnessSlider } from 'reanimated-color-picker';
 import { runOnJS } from 'react-native-reanimated';
@@ -195,12 +195,16 @@ export default function SettingsScreen() {
     setEnableFancyAnimations,
     alwaysShowTutorial,
     setAlwaysShowTutorial,
+    desktopMode,
+    setDesktopMode,
     colorScheme 
   } = useAppSettings();
   const themeColors = useTheme();
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showAccentPicker, setShowAccentPicker] = useState(false);
+
+  const isDesktopBuild = process.env.EXPO_PUBLIC_DESKTOP === 'true';
 
   const handleApplyCustomTheme = (theme: CustomTheme) => {
     setCustomTheme(theme);
@@ -381,6 +385,26 @@ export default function SettingsScreen() {
             thumbColor="#fff"
           />
         </View>
+
+        {isDesktopBuild && (
+          <View style={[styles.settingRow, { marginTop: 20 }]}>
+            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.settingLabel}>Desktop Layout</Text>
+                <MonitorDot size={14} color={themeColors.tint} />
+              </View>
+              <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
+                Redesigned desktop-first layout with side-by-side editor and player.
+              </Text>
+            </View>
+            <Switch
+              value={desktopMode}
+              onValueChange={setDesktopMode}
+              trackColor={{ false: themeColors.border, true: themeColors.tint }}
+              thumbColor="#fff"
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -697,5 +721,56 @@ const styles = StyleSheet.create({
   },
   eraseButtonText: {
     fontWeight: 'bold',
+  },
+  selectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  selectButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  layoutOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    gap: 16,
+  },
+  layoutOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  layoutOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  layoutOptionDesc: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  smallButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  layoutPreview: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
   },
 });

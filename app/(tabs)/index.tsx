@@ -64,6 +64,7 @@ import { BlurView } from 'expo-blur';
 
 import { Text, View, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
+import { EditorContent } from '@/components/EditorContent';
 import {
   LyricLine,
   formatLyricsToLRC,
@@ -513,7 +514,9 @@ const triggerHaptic = (type: 'light' | 'medium' | 'success') => {
 };
 
 export default function EditorScreen() {
-  const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations } = useAppSettings();
+  const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, desktopMode } = useAppSettings();
+  const isDesktopBuild = process.env.EXPO_PUBLIC_DESKTOP === 'true';
+  const showDesktopLayout = isDesktopBuild && desktopMode;
   const theme = useTheme();
   const { registerLayout, isVisible: isTutorialVisible, currentStep, steps } = useTutorial();
 
@@ -1465,120 +1468,72 @@ export default function EditorScreen() {
       </View>
 
       {/* Content Area */}
-      <View style={[styles.contentArea, { borderColor: theme.border }]}>
-        {editorMode === 'sync' ? (
-          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <TutorialView 
-              style={[styles.offsetRow, { height: 40, justifyContent: 'center' }]}
-              targetKey="offset_controls"
-            >
-              <Text style={[styles.offsetLabel, { color: theme.secondaryText }]}>Global Offset:</Text>
-              <TouchableOpacity style={[styles.offsetButton, { borderColor: theme.border }]} onPress={() => applyOffset(-100)}>
-                <Text style={{ color: theme.tint, fontSize: 12 }}>-100ms</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.offsetButton, { borderColor: theme.border }]} onPress={() => applyOffset(100)}>
-                <Text style={{ color: theme.tint, fontSize: 12 }}>+100ms</Text>
-              </TouchableOpacity>
-            </TutorialView>
-            <FlatList
-              data={lyrics}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => (
-              <SyncLyricLine
-                line={item}
-                isActive={currentLineIndex === index}
-                isExpanded={expandedLines.has(item.id)}
-                rhythmMode={rhythmMode}
-                onToggleExpand={handleToggleExpand}
-                onToggleRhythm={() => setRhythmMode(!rhythmMode)}
-                onPress={handleEditLine}
-                onDelete={deleteLyricLine}
-                onSeek={onSliderValueChange}
-                onSyllableSync={handleSyllableSync}
-                currentTime={position}
-                theme={theme}
-              />
-            )}
-            ListEmptyComponent={
-              <Text style={[styles.emptyHint, { color: theme.secondaryText }]}>
-                No lyrics yet. Use the + button to start syncing.
-              </Text>
-            }
-            ListFooterComponent={<View style={{ height: 100 }} />}
-            removeClippedSubviews={true}
-            initialNumToRender={15}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-          />
+      {showDesktopLayout ? (
+        <View style={styles.desktopLayout}>
+          <View style={[styles.desktopEditor, { borderColor: theme.border }]}>
+            <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
           </View>
-        ) : editorMode === 'raw' ? (
-          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <View style={styles.rawToolbar}>
-              <View style={{ flexDirection: 'row', gap: 10, backgroundColor: 'transparent' }}>
-                <TouchableOpacity 
-                  onPress={undo} 
-                  disabled={historyIndex === 0}
-                  style={[styles.toolButton, historyIndex === 0 && { opacity: 0.3 }]}
-                >
-                  <Undo2 size={20} color={theme.tint} />
+          <View style={styles.desktopRightColumn}>
+            <View style={[styles.desktopPlayer, { borderColor: theme.border }]}>
+              <EditorContent editorMode="play" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
+            </View>
+            <View style={[styles.desktopControls, { borderColor: theme.border }]}>
+              <View style={styles.desktopAudioControls}>
+                <TouchableOpacity onPress={pickAudio} style={[styles.fileButton, { borderColor: theme.border }]}>
+                  <FileMusic color={theme.tint} size={20} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fileName} numberOfLines={1}>{audioFile ? audioFile.name : 'Load MP3'}</Text>
+                    {audioFile && <Text style={[styles.metaHint, { color: theme.secondaryText }]}>{artistName ? `${artistName} - ${trackName}` : 'No metadata found'}</Text>}
+                  </View>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={redo} 
-                  disabled={historyIndex >= history.length - 1}
-                  style={[styles.toolButton, historyIndex >= history.length - 1 && { opacity: 0.3 }]}
-                >
-                  <Redo2 size={20} color={theme.tint} />
-                </TouchableOpacity>
+                <View style={styles.sliderRow}>
+                  <Slider style={{ flex: 1, height: 30 }} minimumValue={0} maximumValue={duration || 1} value={position} onSlidingComplete={onSliderValueChange} minimumTrackTintColor={theme.tint} maximumTrackTintColor={theme.border} thumbTintColor={theme.tint} />
+                  <Text style={[styles.timeText, { color: theme.secondaryText }]}>{formatTime(position)} / {formatTime(duration)}</Text>
+                </View>
+                <View style={styles.playbackButtons}>
+                  <TouchableOpacity onPress={() => setShowRateModal(true)} style={styles.controlButton}>
+                    <Gauge color={theme.tint} size={20} />
+                    <Text style={[styles.controlButtonText, { color: theme.tint }]}>{playbackRate.toFixed(2)}x</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={togglePlayback} disabled={!sound}>
+                    {isPlaying ? <Pause color={theme.tint} size={28} /> : <Play color={theme.tint} size={28} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={stopPlayback} disabled={!sound}>
+                    <Square color={theme.tint} size={28} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.controlButton}>
+                    <Search color={theme.tint} size={20} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.nudgeRow}>
+                  <TouchableOpacity onPress={() => nudgePosition(-5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                    <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-5s</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => nudgePosition(-1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                    <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-1s</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                    <Text style={[styles.nudgeText, { color: theme.tint }]}>-0.5s</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                    <Text style={[styles.nudgeText, { color: theme.tint }]}>+0.5s</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => nudgePosition(1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                    <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>+1s</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => nudgePosition(5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                    <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>+5s</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-            <TextInput
-              style={[styles.rawInput, { color: theme.text }]}
-              multiline
-              value={rawLRC}
-              onChangeText={handleRawLRCChange}
-              placeholder="Paste raw LRC or plain text here..."
-              placeholderTextColor={theme.secondaryText}
-              textAlignVertical="top"
-            />
           </View>
-        ) : (
-          <View style={styles.playerContainer}>
-             {lyrics.length === 0 ? (
-                <Text style={[styles.emptyHint, { color: theme.secondaryText }]}>
-                  No lyrics to play. Sync some first!
-                </Text>
-             ) : (
-                <ScrollView 
-                  ref={playerScrollRef}
-                  style={{ flex: 1 }}
-                  contentContainerStyle={styles.playerScrollContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {lyrics.map((line, index) => {
-                    const alignment = line.position === 'left' ? 'flex-start' : line.position === 'right' ? 'flex-end' : 'center';
-                    return (
-                      <View 
-                        key={line.id}
-                        onLayout={(e) => {
-                          lineHeights.current[index] = e.nativeEvent.layout.height;
-                        }}
-                        style={{ alignItems: alignment, width: '100%' }}
-                      >
-                        <AnimatedLyricLine 
-                          line={line} 
-                          isActive={currentLineIndex === index} 
-                          positionSV={positionSV}
-                          theme={theme}
-                        />
-                      </View>
-                    );
-                  })}
-                  <View style={{ height: 400 }} />
-                </ScrollView>
-             )}
-          </View>
-        )}
-      </View>
+        </View>
+      ) : (
+        <View style={[styles.contentArea, { borderColor: theme.border }]}>
+          <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
+        </View>
+      )}
 
       {/* FAB */}
       {(editorMode === 'sync' && (sound || isTutorialFABStep)) && (
@@ -2040,6 +1995,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     gap: 10,
   },
+  audioControlsContainer: {
+    flex: 1,
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    margin: 4,
+  },
   fileButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2472,5 +2434,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+  },
+  desktopLayout: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
+  desktopEditor: {
+    flex: 60,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    overflow: 'hidden',
+  },
+  desktopRightColumn: {
+    flex: 40,
+    gap: 12,
+  },
+  desktopPlayer: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    overflow: 'hidden',
+  },
+  desktopControls: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+  },
+  desktopAudioControls: {
+    gap: 8,
   },
 });
