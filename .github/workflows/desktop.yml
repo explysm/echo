@@ -19,7 +19,12 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf curl wget
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@master
+        with:
+          version: stable
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,28 +51,19 @@ jobs:
           EXPO_PUBLIC_BASE_URL: /echo
           EXPO_PUBLIC_DESKTOP: "true"
 
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^2
+
       - name: Build Tauri App (Linux)
-        uses: tauri-apps/tauri-action@v1
+        run: npx tauri build --target x86_64-unknown-linux-gnu
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          releaseId: ${{ github.ref_name }}
-          tagName: ${{ github.ref_name }}
-          releaseName: Echo ${{ github.ref_name }}
-          releaseBody: "Echo Desktop App"
-          releaseDraft: false
-          prerelease: false
-          distPath: dist
-          bundleName: Echo
-          bundleIdentifier: dev.explysm.echo
-          tauriVersion: 2
-          args: --target x86_64-unknown-linux-gnu
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: echo-linux
-          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
 
   build-windows:
     permissions:
@@ -103,16 +99,13 @@ jobs:
           EXPO_PUBLIC_BASE_URL: /echo
           EXPO_PUBLIC_DESKTOP: "true"
 
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^2
+
       - name: Build Tauri App (Windows)
-        uses: tauri-apps/tauri-action@v1
+        run: npx tauri build --target x86_64-pc-windows-msvc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          distPath: dist
-          bundleName: Echo
-          bundleIdentifier: dev.explysm.echo
-          tauriVersion: 2
-          args: --target x86_64-pc-windows-msvc
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -143,22 +136,14 @@ jobs:
       - name: Extract release notes from changelog
         id: changelog
         run: |
-          # Extract the version from tag (remove 'v' prefix if present)
           VERSION=${GITHUB_REF_NAME#v}
-          
-          # Get the date for this version
-          DATE=$(date +%Y-%m-%d)
-          
-          # Find the changelog section for this version
-          # Look for the tag in the changelog and extract everything up to the next version
           CONTENT=$(awk -v ver="[$VERSION]" '
-            BEGIN { found=0; print "# Changelog\n" }
+            BEGIN { found=0 }
             $0 == ver { found=1; next }
             found && /^\## \[/ { exit }
             found { print }
           ' CHANGELOG.md)
           
-          # If no version found, use unreleased
           if [ -z "$CONTENT" ] || [ "$CONTENT" = "# Changelog" ]; then
             CONTENT=$(awk '
               BEGIN { found=0 }
