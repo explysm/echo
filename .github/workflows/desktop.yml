@@ -21,10 +21,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf curl wget
 
-      - name: Install Rust
-        uses: dtolnay/rust-action@master
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          version: stable
+          target: x86_64-unknown-linux-gnu
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -73,6 +73,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: x86_64-pc-windows-msvc
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
