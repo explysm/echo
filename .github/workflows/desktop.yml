@@ -47,6 +47,7 @@ jobs:
 
       - name: Expo Export (Web)
         run: |
+          sed -i 's|"baseUrl": "/echo"|"baseUrl": ""|g' app.json
           npx expo export --platform web
         env:
           EXPO_PUBLIC_DESKTOP: "true"
@@ -103,11 +104,10 @@ jobs:
 
       - name: Expo Export (Web)
         run: |
-          sed -i 's|"baseUrl": "/echo"|"baseUrl": ""|g'
+          sed -i 's|"baseUrl": "/echo"|"baseUrl": ""|g' app.json
           npx expo export --platform web
         env:
           EXPO_PUBLIC_DESKTOP: "true"
-          EXPO_PUBLIC_BASE_URL: ""
 
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
