@@ -63,6 +63,7 @@ import TutorialOverlay, { TutorialProvider, useTutorial, TutorialView } from '@/
 import { BlurView } from 'expo-blur';
 
 import { Text, View, useTheme } from '@/components/Themed';
+import DropZone from '@/components/DropZone';
 import { useAppSettings } from '@/context/AppSettingsContext';
 import { EditorContent } from '@/components/EditorContent';
 import {
@@ -70,7 +71,10 @@ import {
   formatLyricsToLRC,
   parseLRCToLyrics,
   isSynced,
+  formatLyricsToSRT,
+  formatLyricsToVTT,
 } from '@/lib/lrclib';
+import { getAudioSrc, isAudioFile, isLrcFile, revokeBlobUrl } from '@/lib/audioUtils';
 
 const SyncLyricLine = memo(({ 
   line, 
@@ -518,7 +522,17 @@ const triggerHaptic = (type: 'light' | 'medium' | 'success') => {
 export default function EditorScreen() {
   const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, desktopMode } = useAppSettings();
   const isDesktopBuild = process.env.EXPO_PUBLIC_DESKTOP === 'true';
-  const showDesktopLayout = isDesktopBuild && desktopMode;
+  const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleResize = () => setScreenWidth(window.innerWidth);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+  
+  const showDesktopLayout = desktopMode && screenWidth >= 768;
   const theme = useTheme();
   const { registerLayout, isVisible: isTutorialVisible, currentStep, steps } = useTutorial();
 
@@ -679,7 +693,8 @@ export default function EditorScreen() {
 
   // Share / Export state
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareStep, setShareStep] = useState<'options' | 'lrclib'>('options');
+  const [shareStep, setShareStep] = useState<'options' | 'lrclib' | 'export'>('options');
+  const [selectedExportFormat, setSelectedExportFormat] = useState<'lrc' | 'srt' | 'vtt'>('lrc');
   const [showWebView, setShowWebView] = useState(false);
 
   const getLrclibUpUrl = () => {
@@ -787,19 +802,37 @@ export default function EditorScreen() {
     return script;
   };
 
-  const handleExportLRC = async () => {
+  const handleExport = async () => {
     if (!rawLRC) {
       Alert.alert('Empty Lyrics', 'There are no lyrics to export.');
       return;
     }
 
-    const safeFilename = (trackName || 'lyrics').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const filename = `${safeFilename}.lrc`;
+    let exportContent: string;
+    let filename: string;
+    let mimeType: string;
+    const baseFilename = (trackName || 'lyrics').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+    if (selectedExportFormat === 'lrc') {
+      exportContent = rawLRC;
+      filename = `${baseFilename}.lrc`;
+      mimeType = 'text/plain';
+    } else if (selectedExportFormat === 'srt') {
+      const parsedLyrics = parseLRCToLyrics(rawLRC);
+      exportContent = formatLyricsToSRT(parsedLyrics);
+      filename = `${baseFilename}.srt`;
+      mimeType = 'text/srt';
+    } else {
+      const parsedLyrics = parseLRCToLyrics(rawLRC);
+      exportContent = formatLyricsToVTT(parsedLyrics);
+      filename = `${baseFilename}.vtt`;
+      mimeType = 'text/vtt';
+    }
 
     // 1. Handle Web Download
     if (Platform.OS === 'web') {
       const element = document.createElement("a");
-      const file = new Blob([rawLRC], {type: 'text/plain'});
+      const file = new Blob([exportContent], {type: mimeType});
       element.href = URL.createObjectURL(file);
       element.download = filename;
       document.body.appendChild(element);
@@ -817,10 +850,10 @@ export default function EditorScreen() {
             const uri = await FileSystem.StorageAccessFramework.createFileAsync(
               permissions.directoryUri,
               filename,
-              'text/plain'
+              mimeType
             );
-            await FileSystem.writeAsStringAsync(uri, rawLRC, { encoding: 'utf8' });
-            Alert.alert('Success', `Saved ${filename} to folder.`);
+            await FileSystem.writeAsStringAsync(uri, exportContent, { encoding: 'utf8' });
+            Alert.alert('Success', `Saved ${filename}`);
             setShowShareModal(false);
             return;
           }
@@ -831,15 +864,15 @@ export default function EditorScreen() {
 
       // 3. Fallback for iOS/Others or Android if SAF is unavailable: Use System Share Sheet
       const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory || '') + filename;
-      await FileSystem.writeAsStringAsync(fileUri, rawLRC, { 
+      await FileSystem.writeAsStringAsync(fileUri, exportContent, { 
         encoding: 'utf8' 
       });
       
       const isSharingAvailable = await Sharing.isAvailableAsync();
       if (isSharingAvailable) {
         await Sharing.shareAsync(fileUri, {
-          dialogTitle: 'Export LRC File',
-          mimeType: 'text/plain',
+          dialogTitle: `Export ${selectedExportFormat.toUpperCase()} File`,
+          mimeType: mimeType,
         });
       } else {
         Alert.alert('Sharing Unavailable', 'Could not open share sheet.');
@@ -913,6 +946,10 @@ export default function EditorScreen() {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
+      if (audioFile?.uri) {
+        revokeBlobUrl(audioFile.uri);
+      }
+      const audioSrc = await getAudioSrc(asset.uri, asset.name);
       setAudioFile({ uri: asset.uri, name: asset.name });
       parseMetadataFromFilename(asset.name);
 
@@ -921,17 +958,48 @@ export default function EditorScreen() {
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: asset.uri },
+        { uri: audioSrc },
         { 
           shouldPlay: false,
           rate: playbackRate,
           shouldCorrectPitch: true,
-          progressUpdateIntervalMillis: 100, // Smoother updates for player
+          progressUpdateIntervalMillis: 100,
         },
         onPlaybackStatusUpdate
       );
       setSound(newSound);
     }
+  };
+
+  const handleAudioDrop = async (file: File) => {
+    if (audioFile?.uri) {
+      revokeBlobUrl(audioFile.uri);
+    }
+    const blobUrl = URL.createObjectURL(file);
+    setAudioFile({ uri: blobUrl, name: file.name });
+    parseMetadataFromFilename(file.name);
+
+    if (sound) {
+      await sound.unloadAsync();
+    }
+
+    const { sound: newSound } = await Audio.Sound.createAsync(
+      { uri: blobUrl },
+      { 
+        shouldPlay: false,
+        rate: playbackRate,
+        shouldCorrectPitch: true,
+        progressUpdateIntervalMillis: 100,
+      },
+      onPlaybackStatusUpdate
+    );
+    setSound(newSound);
+  };
+
+  const handleLrcDrop = async (file: File) => {
+    const text = await file.text();
+    setRawLRC(text);
+    triggerHaptic('success');
   };
 
   const togglePlayback = async () => {
@@ -1347,6 +1415,7 @@ export default function EditorScreen() {
 
 
   return (
+    <DropZone onAudioDrop={handleAudioDrop} onLrcDrop={handleLrcDrop}>
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       
@@ -1659,13 +1728,13 @@ export default function EditorScreen() {
 
                 <TouchableOpacity 
                   style={[styles.shareOption, { borderColor: theme.border }]}
-                  onPress={handleExportLRC}
+                  onPress={() => setShareStep('export')}
                 >
                   <FileDown color={theme.tint} size={28} />
                   <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-                    <Text style={styles.shareOptionTitle}>Export as .lrc File</Text>
+                    <Text style={styles.shareOptionTitle}>Export File</Text>
                     <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
-                      Save or share the raw LRC file.
+                      Save as LRC, SRT, or VTT format.
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -1676,6 +1745,73 @@ export default function EditorScreen() {
                 >
                   <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
                 </TouchableOpacity>
+              </>
+            ) : shareStep === 'export' ? (
+              <>
+                <View style={[styles.modalHeader, { backgroundColor: 'transparent' }]}>
+                  <TouchableOpacity onPress={() => setShareStep('options')}>
+                    <ChevronLeft color={theme.tint} size={24} />
+                  </TouchableOpacity>
+                  <Text style={[styles.modalTitle, { flex: 1, marginBottom: 0 }]}>Export Format</Text>
+                  <View style={{ width: 24, backgroundColor: 'transparent' }} />
+                </View>
+                
+                <Text style={[styles.modalSubtitle, { color: theme.secondaryText, marginBottom: 20 }]}>
+                  Choose a format to export your lyrics:
+                </Text>
+                
+                <TouchableOpacity 
+                  style={[styles.shareOption, { borderColor: selectedExportFormat === 'lrc' ? theme.tint : theme.border, borderWidth: selectedExportFormat === 'lrc' ? 2 : 1 }]}
+                  onPress={() => setSelectedExportFormat('lrc')}
+                >
+                  <View style={{ backgroundColor: 'transparent' }}>
+                    <Text style={styles.shareOptionTitle}>LRC Format</Text>
+                    <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
+                      Enhanced lyrics with word-level sync
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.shareOption, { borderColor: selectedExportFormat === 'srt' ? theme.tint : theme.border, borderWidth: selectedExportFormat === 'srt' ? 2 : 1 }]}
+                  onPress={() => setSelectedExportFormat('srt')}
+                >
+                  <View style={{ backgroundColor: 'transparent' }}>
+                    <Text style={styles.shareOptionTitle}>SRT Format</Text>
+                    <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
+                      Standard subtitle format
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.shareOption, { borderColor: selectedExportFormat === 'vtt' ? theme.tint : theme.border, borderWidth: selectedExportFormat === 'vtt' ? 2 : 1 }]}
+                  onPress={() => setSelectedExportFormat('vtt')}
+                >
+                  <View style={{ backgroundColor: 'transparent' }}>
+                    <Text style={styles.shareOptionTitle}>VTT Format</Text>
+                    <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
+                      Web video subtitle format
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.border, marginRight: 10 }]}
+                    onPress={() => setShowShareModal(false)}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.tint, flex: 1 }]}
+                    onPress={handleExport}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.background }]}>
+                      Export {selectedExportFormat.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </>
             ) : (
               <>
@@ -1991,6 +2127,7 @@ export default function EditorScreen() {
       </Modal>
       <TutorialOverlay onModeChange={setEditorMode} />
     </View>
+    </DropZone>
   );
 }
 

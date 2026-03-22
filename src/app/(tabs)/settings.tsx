@@ -396,23 +396,23 @@ export default function SettingsScreen() {
         </View>
 
         {isDesktopBuild && (
-          <View style={[styles.settingRow, { marginTop: 20 }]}>
-            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.settingLabel}>Desktop Layout</Text>
-                <MonitorDot size={14} color={themeColors.tint} />
-              </View>
-              <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
-                Redesigned desktop-first layout with side-by-side editor and player.
-              </Text>
+        <View style={[styles.settingRow, { marginTop: 20 }]}>
+          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.settingLabel}>Desktop Layout</Text>
+              <MonitorDot size={14} color={themeColors.tint} />
             </View>
-            <Switch
-              value={desktopMode}
-              onValueChange={setDesktopMode}
-              trackColor={{ false: themeColors.border, true: themeColors.tint }}
-              thumbColor="#fff"
-            />
+            <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
+              Redesigned layout with side-by-side editor and player. Best on wider screens.
+            </Text>
           </View>
+          <Switch
+            value={desktopMode}
+            onValueChange={setDesktopMode}
+            trackColor={{ false: themeColors.border, true: themeColors.tint }}
+            thumbColor="#fff"
+          />
+        </View>
         )}
       </View>
 
@@ -453,7 +453,24 @@ export default function SettingsScreen() {
         <Text style={styles.aboutText}>
           Echo is a minimalist lyric editor for syncing and publishing lyrics to LRCLIB.
         </Text>
-        <Text style={[styles.version, { color: themeColors.secondaryText }]}>Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.4'}</Text>
+        
+        <View style={[styles.featuresList, { backgroundColor: themeColors.background + '80', borderColor: themeColors.border }]}>
+          <Text style={[styles.featureTitle, { color: themeColors.tint }]}>Features</Text>
+          <Text style={styles.featureItem}>- LRC enhanced lyrics editor</Text>
+          <Text style={styles.featureItem}>- Syllable-level sync</Text>
+          <Text style={styles.featureItem}>- Audio playback with nudge controls</Text>
+          <Text style={styles.featureItem}>- LRCLIB integration for publishing</Text>
+          <Text style={styles.featureItem}>- Export to LRC, SRT, VTT formats</Text>
+          <Text style={styles.featureItem}>- Drag & drop file support</Text>
+          <Text style={styles.featureItem}>- Dark/Light themes with custom accents</Text>
+          <Text style={styles.featureItem}>- Cross-platform (iOS, Android, Web, Desktop)</Text>
+        </View>
+        
+        <View style={[styles.versionBadge, { backgroundColor: themeColors.tint + '20', borderColor: themeColors.tint }]}>
+          <Text style={[styles.versionText, { color: themeColors.tint }]}>
+            Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.5'}
+          </Text>
+        </View>
       </View>
 
       <CustomThemeModal 
@@ -781,5 +798,32 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+  },
+  featuresList: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  featureTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  featureItem: {
+    fontSize: 13,
+    lineHeight: 22,
+  },
+  versionBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  versionText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

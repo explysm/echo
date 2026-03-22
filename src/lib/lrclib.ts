@@ -123,3 +123,42 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
 export function isSynced(lrc: string): boolean {
   return /\[\d{2}:\d{2}\.\d{2,3}\]/.test(lrc);
 }
+
+function formatTimeSRT(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+}
+
+function formatTimeVTT(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+}
+
+export function formatLyricsToSRT(lyrics: LyricLine[]): string {
+  return lyrics
+    .map((line, index) => {
+      const start = formatTimeSRT(line.start);
+      const end = line.end !== null ? formatTimeSRT(line.end) : formatTimeSRT(line.start + 5);
+      const text = line.text.trim().replace(/<\/?[^>]+(>|$)/g, '');
+      return `${index + 1}\n${start} --> ${end}\n${text}`;
+    })
+    .join('\n\n');
+}
+
+export function formatLyricsToVTT(lyrics: LyricLine[]): string {
+  const header = 'WEBVTT\n\n';
+  const cues = lyrics
+    .map((line) => {
+      const start = formatTimeVTT(line.start);
+      const end = line.end !== null ? formatTimeVTT(line.end) : formatTimeVTT(line.start + 5);
+      const text = line.text.trim().replace(/<\/?[^>]+(>|$)/g, '');
+      return `${start} --> ${end}\n${text}`;
+    })
+    .join('\n\n');
+  return header + cues;
+}
