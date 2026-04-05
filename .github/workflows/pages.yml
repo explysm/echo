@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ pre ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
@@ -43,20 +43,8 @@ jobs:
           cat .public-env > .env
           echo "EXPO_PUBLIC_BUILD_TIME=$(date +%s)" >> .env
 
-      - name: Build pre release
+      - name: Expo Export (Web + OTA)
         run: npx expo export
-        env:
-          EXPO_PUBLIC_BASE_URL: /echo/pre
-          EXPO_PUBLIC_DESKTOP: "true"
-
-      - name: Prepare output directory
-        run: |
-          mkdir -p deploy/pre
-          mv dist/* deploy/pre/
-          git checkout origin/main
-          pnpm install --frozen-lockfile
-          npx expo export
-          mv dist/* deploy/
         env:
           EXPO_PUBLIC_BASE_URL: /echo
           EXPO_PUBLIC_DESKTOP: "true"
@@ -67,7 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './deploy'
+          path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
