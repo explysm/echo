@@ -51,6 +51,7 @@ import {
   Maximize2,
   Undo2,
   Redo2,
+  Info,
 } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
@@ -1413,9 +1414,18 @@ export default function EditorScreen() {
                 </TouchableOpacity>
 
                 {hasEnhancedFeatures && (
-                  <View style={{ backgroundColor: theme.tint + '10', padding: 12, borderRadius: 12, marginBottom: 12 }}>
-                    <Text style={{ color: theme.tint, fontSize: 12, fontWeight: '600' }}>
-                      ℹ️ This song uses speaker/bg tags which are only fully supported in LRC export.
+                  <View style={{ 
+                    backgroundColor: theme.tint + '10', 
+                    padding: 12, 
+                    borderRadius: 12, 
+                    marginBottom: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <Info size={16} color={theme.tint} />
+                    <Text style={{ color: theme.tint, fontSize: 12, fontWeight: '600', flex: 1 }}>
+                      This song uses speaker/bg tags which are only fully supported in LRC export.
                     </Text>
                   </View>
                 )}

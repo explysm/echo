@@ -25,14 +25,14 @@ export function formatLyricsToLRC(lyrics: LyricLine[]): string {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
       };
 
-      let lineLRC = `[${formatTime(line.start)}] `;
+      let lineLRC = `[${formatTime(line.start)}]`;
 
       if (line.position && line.position !== 'center') {
-        lineLRC += `{@position:${line.position}} `;
+        lineLRC += ` {@position:${line.position}}`;
       }
 
       if (line.speaker) {
-        lineLRC += `${line.speaker}: `;
+        lineLRC += `${line.speaker}:`;
       }
 
       let content = '';
@@ -40,7 +40,7 @@ export function formatLyricsToLRC(lyrics: LyricLine[]): string {
         content = line.syllables
           .map((s) => {
             const t = s.time > 0 ? s.time : line.start;
-            return `<${formatTime(t)}> ${s.text.trim()}`;
+            return `<${formatTime(t)}>${s.text.trim()}`;
           })
           .join(' ');
       } else {
@@ -50,6 +50,10 @@ export function formatLyricsToLRC(lyrics: LyricLine[]): string {
       if (line.isBackground) {
         lineLRC += `[bg:${content}]`;
       } else {
+        // Standard LRC: add a space if no speaker tag is present for readability
+        if (!line.speaker) {
+          lineLRC += ' ';
+        }
         lineLRC += content;
       }
 
