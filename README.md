@@ -21,7 +21,7 @@ Echo is a minimalist, open-source lyric editor built with Expo and TypeScript, d
 - **Real-time Player**: Preview your synced lyrics with the built-in audio player.
 - **Instant Upload**: Submit your lyrics to LRCLIB via the integrated [LRCLIB UP](https://lrclibup.boidu.dev/) interface.
 - **Export to .lrc**: Save your work locally as standard LRC files.
-- **Cross-Platform**: Works as an Android APK, Linux AppImage, Windows EXE (setup) and through the [website.](https://explysm.github.io/echo)
+- **Cross-Platform**: Works as an Android APK, Windows EXE (setup) and through the [website.](https://explysm.github.io/echo)
 
 ## Screenshots
 <p align="center">
@@ -52,11 +52,8 @@ Echo is a minimalist, open-source lyric editor built with Expo and TypeScript, d
 ### Android APK
 Download the latest APK from the [Releases](https://github.com/explysm/echo/releases) page.
 
-### Desktop (Windows & Linux)
+### Desktop (Windows)
 - **Windows**: Download `Echo_x.x.x_x64-setup.exe` from the [Releases](https://github.com/explysm/echo/releases) page.
-- **Linux**: Download `Echo_x.x.x_amd64.AppImage` from the [Releases](https://github.com/explysm/echo/releases) page.
-  - Make it executable: `chmod +x Echo_x.x.x_amd64.AppImage`
-  - Run: `./Echo_x.x.x_amd64.AppImage`
 
 ### Web (PWA)
 Access the web version at: https://explysm.github.io/echo

@@ -206,6 +206,8 @@ export default function SettingsScreen() {
     setAlwaysShowTutorial,
     desktopMode,
     setDesktopMode,
+    onePressSync,
+    setOnePressSync,
     colorScheme 
   } = useAppSettings();
   const themeColors = useTheme();
@@ -335,20 +337,37 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Sync Editor</Text>
         <View style={styles.settingRow}>
           <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <Text style={styles.settingLabel}>Pause on line end</Text>
+            <Text style={styles.settingLabel}>One-press sync</Text>
             <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
-              Automatically pause playback when you finish syncing a lyric line.
+              Immediately mark timestamps without pausing or showing a text modal. Best for syncing pre-written lyrics.
             </Text>
           </View>
           <Switch
-            value={pauseOnEnd}
-            onValueChange={setPauseOnEnd}
+            value={onePressSync}
+            onValueChange={setOnePressSync}
             trackColor={{ false: themeColors.border, true: themeColors.tint }}
             thumbColor="#fff"
           />
         </View>
 
-        {pauseOnEnd && (
+        {!onePressSync && (
+          <View style={[styles.settingRow, { marginTop: 20 }]}>
+            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+              <Text style={styles.settingLabel}>Pause on line end</Text>
+              <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
+                Automatically pause playback when you finish syncing a lyric line.
+              </Text>
+            </View>
+            <Switch
+              value={pauseOnEnd}
+              onValueChange={setPauseOnEnd}
+              trackColor={{ false: themeColors.border, true: themeColors.tint }}
+              thumbColor="#fff"
+            />
+          </View>
+        )}
+
+        {!onePressSync && pauseOnEnd && (
           <View style={[styles.settingRow, { marginTop: 20 }]}>
             <View style={{ flex: 1, backgroundColor: 'transparent' }}>
               <Text style={styles.settingLabel}>Rewind on pause (s)</Text>
