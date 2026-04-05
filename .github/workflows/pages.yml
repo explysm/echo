@@ -43,7 +43,7 @@ jobs:
           cat .public-env > .env
           echo "EXPO_PUBLIC_BUILD_TIME=$(date +%s)" >> .env
 
-      - name: Expo Export (Web + OTA)
+      - name: Build pre release
         run: npx expo export
         env:
           EXPO_PUBLIC_BASE_URL: /echo/pre
@@ -53,9 +53,13 @@ jobs:
         run: |
           mkdir -p deploy/pre
           mv dist/* deploy/pre/
-          git fetch origin main
-          git checkout origin/main -- dist
+          git checkout origin/main
+          pnpm install --frozen-lockfile
+          npx expo export
           mv dist/* deploy/
+        env:
+          EXPO_PUBLIC_BASE_URL: /echo
+          EXPO_PUBLIC_DESKTOP: "true"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
