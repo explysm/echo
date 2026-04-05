@@ -7,68 +7,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-linux:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf curl wget imagemagick
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: x86_64-unknown-linux-gnu
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Create .env file
-        run: |
-          cat .public-env > .env
-          echo "EXPO_PUBLIC_BUILD_TIME=$(date +%s)" >> .env
-
-      - name: Expo Export (Web)
-        run: |
-          sed -i 's|"baseUrl": "/echo"|"baseUrl": ""|g' app.json
-          npx expo export --platform web
-        env:
-          EXPO_PUBLIC_DESKTOP: "true"
-
-      - name: Install Tauri CLI
-        run: npm install -g @tauri-apps/cli@^2
-
-      - name: Generate Icons
-        run: npx tauri icon assets/images/echo.png
-
-      - name: Build Tauri App (Linux)
-        run: npx tauri build --target x86_64-unknown-linux-gnu --features custom-protocol
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: echo-linux
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-
   build-windows:
     permissions:
       contents: read
@@ -129,17 +67,12 @@ jobs:
   release:
     permissions:
       contents: write
-    needs: [build-linux, build-windows]
+    needs: [build-windows]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: echo-linux
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
@@ -180,7 +113,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            *.AppImage
             *.exe
           name: Echo ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}

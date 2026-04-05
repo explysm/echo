@@ -14,6 +14,7 @@ export interface LyricLine {
 
 export function formatLyricsToLRC(lyrics: LyricLine[]): string {
   return lyrics
+    .filter(line => line.start >= 0)
     .map((line) => {
       const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -99,12 +100,20 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
         : content;
 
       lyrics.push({
-        id: `line-${start.toFixed(3)}`,
+        id: Math.random().toString(36).substr(2, 9),
         start,
         end: null,
         text: plainText,
         syllables: syllables.length > 0 ? syllables : undefined,
         position,
+      });
+    } else if (line.trim()) {
+      // Handle plain text line
+      lyrics.push({
+        id: Math.random().toString(36).substr(2, 9),
+        start: -1, // Use -1 to indicate unsynced
+        end: null,
+        text: line.trim(),
       });
     }
   });
