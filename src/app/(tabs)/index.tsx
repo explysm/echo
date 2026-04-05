@@ -100,6 +100,10 @@ function formatTime(seconds: number) {
 export default function EditorScreen() {
   const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, desktopMode, onePressSync } = useAppSettings();
   const isDesktopBuild = process.env.EXPO_PUBLIC_DESKTOP === 'true';
+
+  useEffect(() => {
+    setSyncState('idle');
+  }, [onePressSync]);
   const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
   
   useEffect(() => {
@@ -2114,10 +2118,13 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.4)', // Slightly more transparent for better blur visibility
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    // @ts-ignore - Web only
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
   },
   modalContent: {
     width: '100%',
@@ -2185,6 +2192,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
     paddingTop: Platform.OS === 'ios' ? 50 : 0,
+    // @ts-ignore - Web only
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
   },
   webViewHeader: {
     flexDirection: 'row',
