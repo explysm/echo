@@ -88,6 +88,12 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       targetKey: 'fab_sync'
     },
     {
+      title: "Advanced LRC Features",
+      description: "Use 'v1: text' or 'v2: text' for speaker colors, and '[bg: text]' at the end of a line for background vocals. (LRC export only)",
+      icon: <Layers size={40} color={theme.tint} />,
+      mode: 'raw'
+    },
+    {
       title: "Share & Publish",
       description: "Once finished, export your LRC file or publish directly to LRCLIB using the share button.",
       icon: <Share2 size={40} color={theme.tint} />,
