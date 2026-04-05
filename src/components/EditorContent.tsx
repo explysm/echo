@@ -38,6 +38,7 @@ interface SyncLyricLineProps {
   onDelete: (id: string) => void;
   onSeek: (time: number) => void;
   onSyllableSync: (lineId: string, wordIndex: number, time: number) => void;
+  onUpdateLine: (id: string, updates: Partial<LyricLine>) => void;
   currentTime: number;
   theme: any;
 }
@@ -53,6 +54,7 @@ const SyncLyricLine = memo(({
   onDelete,
   onSeek,
   onSyllableSync,
+  onUpdateLine,
   currentTime,
   theme
 }: SyncLyricLineProps) => {
@@ -114,17 +116,37 @@ const SyncLyricLine = memo(({
             </Text>
           </TouchableOpacity>
           <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <Text style={[
-              styles.lyricText,
-              { color: getSafeColor(theme.text, '#000000') },
-              isActive && { fontWeight: '600', color: safeTint }
-            ]}>
-              {line.text}
-              {line.syllables && <Text style={{ fontSize: 10, color: safeTint }}> ✨</Text>}
-              {line.position && line.position !== 'center' && (
-                <Text style={{ fontSize: 10, color: safeTint }}> 📍{line.position.toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', backgroundColor: 'transparent' }}>
+              {line.speaker && (
+                <View style={[
+                  styles.speakerBadge, 
+                  { backgroundColor: line.speaker === 'v1' ? '#3b82f620' : line.speaker === 'v2' ? '#ef444420' : safeTint + '15' }
+                ]}>
+                  <Text style={[
+                    styles.speakerText, 
+                    { color: line.speaker === 'v1' ? '#3b82f6' : line.speaker === 'v2' ? '#ef4444' : safeTint }
+                  ]}>
+                    {line.speaker.toUpperCase()}
+                  </Text>
+                </View>
               )}
-            </Text>
+              <Text style={[
+                styles.lyricText,
+                { color: getSafeColor(theme.text, '#000000') },
+                isActive && { fontWeight: '600', color: safeTint }
+              ]}>
+                {line.text}
+                {line.syllables && <Text style={{ fontSize: 10, color: safeTint }}> ✨</Text>}
+                {line.position && line.position !== 'center' && (
+                  <Text style={{ fontSize: 10, color: safeTint }}> 📍{line.position.toUpperCase()}</Text>
+                )}
+              </Text>
+            </View>
+            {line.background && (
+              <Text style={[styles.backgroundVocal, { color: theme.secondaryText }]}>
+                (bg: {line.background})
+              </Text>
+            )}
           </View>
         </View>
 
@@ -142,6 +164,44 @@ const SyncLyricLine = memo(({
       </Pressable>
 
       <Animated.View style={[styles.expandedContent, { backgroundColor: theme.background }, animatedStyle]}>
+        <View style={styles.advancedControls}>
+          <View style={{ flex: 1, gap: 10 }}>
+            <Text style={[styles.controlLabel, { color: theme.secondaryText }]}>Speaker Tag:</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {['v1', 'v2', 'none'].map((s) => (
+                <TouchableOpacity
+                  key={s}
+                  onPress={() => onUpdateLine(line.id, { speaker: s === 'none' ? undefined : s })}
+                  style={[
+                    styles.speakerOption,
+                    { borderColor: safeBorder },
+                    (line.speaker === s || (s === 'none' && !line.speaker)) && { backgroundColor: safeTint, borderColor: safeTint }
+                  ]}
+                >
+                  <Text style={[
+                    styles.speakerOptionText,
+                    { color: theme.text },
+                    (line.speaker === s || (s === 'none' && !line.speaker)) && { color: theme.background }
+                  ]}>
+                    {s.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={{ flex: 1, gap: 8 }}>
+            <Text style={[styles.controlLabel, { color: theme.secondaryText }]}>Background Vocal:</Text>
+            <TextInput
+              style={[styles.smallInput, { color: theme.text, borderColor: safeBorder }]}
+              placeholder="e.g. Oh oh oh..."
+              placeholderTextColor={theme.secondaryText}
+              value={line.background || ''}
+              onChangeText={(text) => onUpdateLine(line.id, { background: text || undefined })}
+            />
+          </View>
+        </View>
+
         <View style={styles.expandHeader}>
            <Text style={[styles.hint, { color: theme.secondaryText, flex: 1 }]}>
              {rhythmMode ? 'Rhythm Mode: Tap the big button for each word.' : 'Manual Mode: Tap word chips.'}
@@ -229,12 +289,13 @@ function AnimatedLyricLine({
 
   // Handle positioning
   const textAlign = line.position === 'left' ? 'flex-start' : line.position === 'right' ? 'flex-end' : 'center';
+  const speakerColor = line.speaker === 'v1' ? '#3b82f6' : line.speaker === 'v2' ? '#ef4444' : undefined;
 
-  if (line.syllables && line.syllables.length > 0) {
-    return (
-      <View style={[styles.syllableLineContainer, { justifyContent: textAlign as any }]}>
-        {line.syllables.map((s, i) => {
-          return (
+  return (
+    <View style={{ alignItems: textAlign as any, width: '100%', backgroundColor: 'transparent' }}>
+      {line.syllables && line.syllables.length > 0 ? (
+        <View style={[styles.syllableLineContainer, { justifyContent: textAlign as any }]}>
+          {line.syllables.map((s, i) => (
             <AnimatedSyllable 
               key={`${line.id}-${i}`}
               text={s.text}
@@ -243,26 +304,39 @@ function AnimatedLyricLine({
               positionSV={positionSV}
               theme={theme}
               enableFancyAnimations={enableFancyAnimations}
+              overrideColor={speakerColor}
             />
-          );
-        })}
-      </View>
-    );
-  }
-
-  return (
-    <AnimatedLineText 
-      text={line.text}
-      isActive={isActive}
-      theme={theme}
-      enableFancyAnimations={enableFancyAnimations}
-      textAlign={textAlign}
-    />
+          ))}
+        </View>
+      ) : (
+        <AnimatedLineText 
+          text={line.text}
+          isActive={isActive}
+          theme={theme}
+          enableFancyAnimations={enableFancyAnimations}
+          textAlign={textAlign}
+          overrideColor={speakerColor}
+        />
+      )}
+      {line.background && (
+        <Text style={[
+          styles.playerBackgroundVocal, 
+          { 
+            color: theme.secondaryText, 
+            textAlign: (textAlign === 'flex-start' ? 'left' : textAlign === 'flex-end' ? 'right' : 'center') as any,
+            opacity: isActive ? 0.8 : 0.4
+          }
+        ]}>
+          ({line.background})
+        </Text>
+      )}
+    </View>
   );
 }
 
-function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, enableFancyAnimations }: any) {
+function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, enableFancyAnimations, overrideColor }: any) {
   const safeTint = useDerivedValue(() => {
+    if (overrideColor) return overrideColor;
     const val = theme.tint;
     return (typeof val === 'string' && val.startsWith('#') && !val.includes('NaN')) ? val.slice(0, 7) : '#0f172a';
   });
@@ -296,8 +370,9 @@ function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, en
   );
 }
 
-function AnimatedLineText({ text, isActive, theme, enableFancyAnimations, textAlign }: any) {
+function AnimatedLineText({ text, isActive, theme, enableFancyAnimations, textAlign, overrideColor }: any) {
   const safeTint = useDerivedValue(() => {
+    if (overrideColor) return overrideColor;
     const val = theme.tint;
     return (typeof val === 'string' && val.startsWith('#') && !val.includes('NaN')) ? val.slice(0, 7) : '#0f172a';
   });
@@ -352,6 +427,7 @@ interface EditorContentProps {
   deleteLyricLine: (id: string) => void;
   onSliderValueChange: (v: number) => void;
   handleSyllableSync: (lineId: string, wordIndex: number, time: number) => void;
+  onUpdateLine: (id: string, updates: Partial<LyricLine>) => void;
   applyOffset: (ms: number) => void;
   undo: () => void;
   redo: () => void;
@@ -379,6 +455,7 @@ export function EditorContent({
   deleteLyricLine,
   onSliderValueChange,
   handleSyllableSync,
+  onUpdateLine,
   applyOffset,
   undo,
   redo,
@@ -421,6 +498,7 @@ export function EditorContent({
               onDelete={deleteLyricLine}
               onSeek={onSliderValueChange}
               onSyllableSync={handleSyllableSync}
+              onUpdateLine={onUpdateLine}
               currentTime={position}
               theme={theme}
             />
@@ -543,6 +621,40 @@ const styles = StyleSheet.create({
     padding: 12,
     borderTopWidth: 0,
     borderTopColor: 'rgba(150,150,150,0.1)',
+  },
+  advancedControls: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(150,150,150,0.1)',
+    backgroundColor: 'transparent',
+  },
+  controlLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  speakerOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 45,
+    alignItems: 'center',
+  },
+  speakerOptionText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  smallInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13,
   },
   expandHeader: {
     flexDirection: 'row',
@@ -669,6 +781,25 @@ const styles = StyleSheet.create({
   },
   playerLineActive: {
     fontWeight: 'bold',
+  },
+  speakerBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  speakerText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  backgroundVocal: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  playerBackgroundVocal: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    paddingBottom: 8,
   },
   syllableLineContainer: {
     flexDirection: 'row',

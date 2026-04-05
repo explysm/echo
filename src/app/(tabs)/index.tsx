@@ -158,6 +158,7 @@ export default function EditorScreen() {
 
   // Lyrics state
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
+  const hasEnhancedFeatures = lyrics.some(l => l.speaker || l.background);
   const [rawLRC, setRawLRC] = useState('');
   const [history, setHistory] = useState<string[]>(['']);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -758,6 +759,15 @@ export default function EditorScreen() {
     setRawLRC(formatLyricsToLRC(updatedLyrics));
   };
 
+  const updateLyricLine = (id: string, updates: Partial<LyricLine>) => {
+    const updatedLyrics = lyrics.map(l => 
+      l.id === id ? { ...l, ...updates } : l
+    );
+    isInternalUpdate.current = true;
+    setLyrics(updatedLyrics);
+    setRawLRC(formatLyricsToLRC(updatedLyrics));
+  };
+
   const deleteLyricLine = (id: string) => {
     const updatedLyrics = lyrics.filter((l) => l.id !== id);
     isInternalUpdate.current = true;
@@ -1202,11 +1212,11 @@ export default function EditorScreen() {
                 <Share color={theme.tint} size={24} />
               </TouchableOpacity>
             </View>
-            <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
+            <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} onUpdateLine={updateLyricLine} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
           </View>
           <View style={styles.desktopRightColumn}>
             <View style={[styles.desktopPlayer, { borderColor: theme.border }]}>
-              <EditorContent editorMode="play" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
+              <EditorContent editorMode="play" lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} onUpdateLine={updateLyricLine} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
             </View>
             <View style={[styles.desktopControls, { borderColor: theme.border }]}>
               <View style={styles.desktopAudioControls}>
@@ -1262,7 +1272,7 @@ export default function EditorScreen() {
         </View>
       ) : (
         <View style={[styles.contentArea, { borderColor: theme.border }]}>
-          <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
+          <EditorContent editorMode={editorMode} lyrics={lyrics} theme={theme} expandedLines={expandedLines} rhythmMode={rhythmMode} currentLineIndex={currentLineIndex} position={position} historyIndex={historyIndex} history={history} rawLRC={rawLRC} playerScrollRef={playerScrollRef} lineHeights={lineHeights} positionSV={positionSV} TutorialView={TutorialView} handleToggleExpand={handleToggleExpand} setRhythmMode={setRhythmMode} handleEditLine={handleEditLine} deleteLyricLine={deleteLyricLine} onSliderValueChange={onSliderValueChange} handleSyllableSync={handleSyllableSync} onUpdateLine={updateLyricLine} applyOffset={applyOffset} undo={undo} redo={redo} handleRawLRCChange={handleRawLRCChange} />
         </View>
       )}
 
@@ -1365,14 +1375,26 @@ export default function EditorScreen() {
             {shareStep === 'options' ? (
               <>
                 <TouchableOpacity 
-                  style={[styles.shareOption, { borderColor: theme.border }]}
-                  onPress={() => setShareStep('lrclib')}
+                  style={[
+                    styles.shareOption, 
+                    { borderColor: theme.border },
+                    hasEnhancedFeatures && { opacity: 0.5 }
+                  ]}
+                  onPress={() => {
+                    if (hasEnhancedFeatures) {
+                      import('react-native').then(({ Alert }) => {
+                        Alert.alert('Not Supported', 'LRCLIB does not support speaker tags or background vocals. Please use LRC export instead.');
+                      });
+                    } else {
+                      setShareStep('lrclib');
+                    }
+                  }}
                 >
-                  <CloudUpload color={theme.tint} size={28} />
+                  <CloudUpload color={hasEnhancedFeatures ? theme.secondaryText : theme.tint} size={28} />
                   <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-                    <Text style={styles.shareOptionTitle}>Upload to LRCLIB</Text>
+                    <Text style={[styles.shareOptionTitle, hasEnhancedFeatures && { color: theme.secondaryText }]}>Upload to LRCLIB</Text>
                     <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
-                      Submit your lyrics to the public database.
+                      {hasEnhancedFeatures ? 'Disabled: Contains speaker/bg tags' : 'Submit your lyrics to the public database.'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -1389,6 +1411,14 @@ export default function EditorScreen() {
                     </Text>
                   </View>
                 </TouchableOpacity>
+
+                {hasEnhancedFeatures && (
+                  <View style={{ backgroundColor: theme.tint + '10', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+                    <Text style={{ color: theme.tint, fontSize: 12, fontWeight: '600' }}>
+                      ℹ️ This song uses speaker/bg tags which are only fully supported in LRC export.
+                    </Text>
+                  </View>
+                )}
 
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: theme.border, marginTop: 10 }]}
@@ -1418,7 +1448,7 @@ export default function EditorScreen() {
                   <View style={{ backgroundColor: 'transparent' }}>
                     <Text style={styles.shareOptionTitle}>LRC Format</Text>
                     <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
-                      Enhanced lyrics with word-level sync
+                      {hasEnhancedFeatures ? 'Full support for speaker/bg tags' : 'Enhanced lyrics with word-level sync'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -1430,7 +1460,7 @@ export default function EditorScreen() {
                   <View style={{ backgroundColor: 'transparent' }}>
                     <Text style={styles.shareOptionTitle}>SRT Format</Text>
                     <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
-                      Standard subtitle format
+                      {hasEnhancedFeatures ? 'Warning: Speaker/bg tags will be stripped' : 'Standard subtitle format'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -1442,7 +1472,7 @@ export default function EditorScreen() {
                   <View style={{ backgroundColor: 'transparent' }}>
                     <Text style={styles.shareOptionTitle}>VTT Format</Text>
                     <Text style={[styles.shareOptionDesc, { color: theme.secondaryText }]}>
-                      Web video subtitle format
+                      {hasEnhancedFeatures ? 'Warning: Speaker/bg tags will be stripped' : 'Web video subtitle format'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -2124,6 +2154,7 @@ const styles = StyleSheet.create({
     padding: 20,
     // @ts-ignore - Web only
     backdropFilter: 'blur(20px)',
+    // @ts-ignore - Web only
     WebkitBackdropFilter: 'blur(20px)',
   },
   modalContent: {
@@ -2194,6 +2225,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 50 : 0,
     // @ts-ignore - Web only
     backdropFilter: 'blur(20px)',
+    // @ts-ignore - Web only
     WebkitBackdropFilter: 'blur(20px)',
   },
   webViewHeader: {
