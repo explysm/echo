@@ -133,20 +133,16 @@ const SyncLyricLine = memo(({
               <Text style={[
                 styles.lyricText,
                 { color: getSafeColor(theme.text, '#000000') },
-                isActive && { fontWeight: '600', color: safeTint }
+                isActive && { fontWeight: '600', color: safeTint },
+                line.isBackground && { fontStyle: 'italic', opacity: 0.7 }
               ]}>
-                {line.text}
+                {line.isBackground ? `(bg: ${line.text})` : line.text}
                 {line.syllables && <Text style={{ fontSize: 10, color: safeTint }}> ✨</Text>}
                 {line.position && line.position !== 'center' && (
                   <Text style={{ fontSize: 10, color: safeTint }}> 📍{line.position.toUpperCase()}</Text>
                 )}
               </Text>
             </View>
-            {line.background && (
-              <Text style={[styles.backgroundVocal, { color: theme.secondaryText }]}>
-                (bg: {line.background})
-              </Text>
-            )}
           </View>
         </View>
 
@@ -191,14 +187,23 @@ const SyncLyricLine = memo(({
           </View>
 
           <View style={{ flex: 1, gap: 8 }}>
-            <Text style={[styles.controlLabel, { color: theme.secondaryText }]}>Background Vocal:</Text>
-            <TextInput
-              style={[styles.smallInput, { color: theme.text, borderColor: safeBorder }]}
-              placeholder="e.g. Oh oh oh..."
-              placeholderTextColor={theme.secondaryText}
-              value={line.background || ''}
-              onChangeText={(text) => onUpdateLine(line.id, { background: text || undefined })}
-            />
+            <Text style={[styles.controlLabel, { color: theme.secondaryText }]}>Background Line:</Text>
+            <TouchableOpacity
+              onPress={() => onUpdateLine(line.id, { isBackground: !line.isBackground })}
+              style={[
+                styles.speakerOption,
+                { borderColor: safeBorder, width: '100%' },
+                line.isBackground && { backgroundColor: safeTint, borderColor: safeTint }
+              ]}
+            >
+              <Text style={[
+                styles.speakerOptionText,
+                { color: theme.text },
+                line.isBackground && { color: theme.background }
+              ]}>
+                {line.isBackground ? 'BACKGROUND VOCAL: ON' : 'BACKGROUND VOCAL: OFF'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -295,6 +300,7 @@ function AnimatedLyricLine({
     <View style={{ alignItems: textAlign as any, width: '100%', backgroundColor: 'transparent' }}>
       {line.syllables && line.syllables.length > 0 ? (
         <View style={[styles.syllableLineContainer, { justifyContent: textAlign as any }]}>
+          {line.isBackground && <Text style={[styles.syllableText, { color: theme.secondaryText }]}> ( </Text>}
           {line.syllables.map((s, i) => (
             <AnimatedSyllable 
               key={`${line.id}-${i}`}
@@ -305,36 +311,27 @@ function AnimatedLyricLine({
               theme={theme}
               enableFancyAnimations={enableFancyAnimations}
               overrideColor={speakerColor}
+              overrideOpacity={line.isBackground ? 0.6 : undefined}
             />
           ))}
+          {line.isBackground && <Text style={[styles.syllableText, { color: theme.secondaryText }]}> ) </Text>}
         </View>
       ) : (
         <AnimatedLineText 
-          text={line.text}
+          text={line.isBackground ? `( ${line.text} )` : line.text}
           isActive={isActive}
           theme={theme}
           enableFancyAnimations={enableFancyAnimations}
           textAlign={textAlign}
           overrideColor={speakerColor}
+          overrideStyle={line.isBackground ? { fontStyle: 'italic', opacity: 0.6 } : undefined}
         />
-      )}
-      {line.background && (
-        <Text style={[
-          styles.playerBackgroundVocal, 
-          { 
-            color: theme.secondaryText, 
-            textAlign: (textAlign === 'flex-start' ? 'left' : textAlign === 'flex-end' ? 'right' : 'center') as any,
-            opacity: isActive ? 0.8 : 0.4
-          }
-        ]}>
-          ({line.background})
-        </Text>
       )}
     </View>
   );
 }
 
-function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, enableFancyAnimations, overrideColor }: any) {
+function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, enableFancyAnimations, overrideColor, overrideOpacity }: any) {
   const safeTint = useDerivedValue(() => {
     if (overrideColor) return overrideColor;
     const val = theme.tint;
@@ -352,9 +349,10 @@ function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, en
   });
 
   const animatedStyle = useAnimatedStyle(() => {
+    const baseOpacity = overrideOpacity !== undefined ? overrideOpacity : 0.5;
     return {
       transform: [{ scale: 1 + (activeProgress.value * 0.15) }],
-      opacity: 0.5 + (activeProgress.value * 0.5),
+      opacity: baseOpacity + (activeProgress.value * (1 - baseOpacity)),
       color: interpolateColor(
         activeProgress.value,
         [0, 1],
@@ -370,7 +368,7 @@ function AnimatedSyllable({ text, startTime, isLineActive, positionSV, theme, en
   );
 }
 
-function AnimatedLineText({ text, isActive, theme, enableFancyAnimations, textAlign, overrideColor }: any) {
+function AnimatedLineText({ text, isActive, theme, enableFancyAnimations, textAlign, overrideColor, overrideStyle }: any) {
   const safeTint = useDerivedValue(() => {
     if (overrideColor) return overrideColor;
     const val = theme.tint;
@@ -387,15 +385,17 @@ function AnimatedLineText({ text, isActive, theme, enableFancyAnimations, textAl
   });
 
   const animatedStyle = useAnimatedStyle(() => {
+    const baseOpacity = overrideStyle?.opacity !== undefined ? overrideStyle.opacity : 0.6;
     return {
       transform: [{ scale: 1 + (activeProgress.value * 0.05) }],
-      opacity: 0.6 + (activeProgress.value * 0.4),
+      opacity: baseOpacity + (activeProgress.value * (1 - baseOpacity)),
       color: interpolateColor(
         activeProgress.value,
         [0, 1],
         [safeSecondary.value, safeTint.value]
       ),
       textAlign: (textAlign === 'flex-start' ? 'left' : textAlign === 'flex-end' ? 'right' : 'center') as any,
+      fontStyle: overrideStyle?.fontStyle || 'normal',
     };
   });
 

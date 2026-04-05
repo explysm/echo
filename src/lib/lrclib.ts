@@ -10,6 +10,8 @@ export interface LyricLine {
   text: string;
   syllables?: Syllable[];
   position?: 'left' | 'center' | 'right' | string;
+  speaker?: string; // e.g. "v1", "v2"
+  isBackground?: boolean;
 }
 
 export function formatLyricsToLRC(lyrics: LyricLine[]): string {
@@ -29,17 +31,26 @@ export function formatLyricsToLRC(lyrics: LyricLine[]): string {
         lineLRC += `{@position:${line.position}} `;
       }
 
+      if (line.speaker) {
+        lineLRC += `${line.speaker}: `;
+      }
+
+      let content = '';
       if (line.syllables && line.syllables.length > 0) {
-        lineLRC += line.syllables
+        content = line.syllables
           .map((s) => {
-            // Every word in an enhanced line MUST have a tag to prevent the parser 
-            // from combining them. If desynced, use the line's start time.
             const t = s.time > 0 ? s.time : line.start;
             return `<${formatTime(t)}> ${s.text.trim()}`;
           })
           .join(' ');
       } else {
-        lineLRC += line.text.trim();
+        content = line.text.trim();
+      }
+
+      if (line.isBackground) {
+        lineLRC += `[bg:${content}]`;
+      } else {
+        lineLRC += content;
       }
 
       return lineLRC.trim();
@@ -55,6 +66,8 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
   const lineRegex = /^\[(\d{2}):(\d{2})\.(\d{2,3})\]\s*(.*)$/;
   const positionRegex = /\{@position:([^}]+)\}/;
   const syllableRegex = /<(\d{2}):(\d{2})\.(\d{2,3})>([^<]*)/g;
+  const speakerRegex = /^([a-zA-Z0-9]+):\s*(.*)$/;
+  const backgroundRegex = /\[bg:([^\]]+)\]/;
 
   lines.forEach((line) => {
     const match = line.match(lineRegex);
@@ -73,6 +86,22 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
         content = content.replace(positionRegex, '').trim();
       }
 
+      // Extract Background
+      let isBackground = false;
+      const bgMatch = content.match(backgroundRegex);
+      if (bgMatch) {
+        isBackground = true;
+        content = bgMatch[1].trim(); // Extract content from inside [bg:]
+      }
+
+      // Extract Speaker
+      let speaker: string | undefined;
+      const speakerMatch = content.match(speakerRegex);
+      if (speakerMatch) {
+        speaker = speakerMatch[1];
+        content = speakerMatch[2].trim();
+      }
+
       // Extract Syllables
       const syllables: Syllable[] = [];
       let syllableMatch;
@@ -85,12 +114,7 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
         const sTime = sMins * 60 + sSecs + sCents / 100;
         const sText = syllableMatch[4].trim();
         
-        // If the syllable time is exactly the same as the line start, 
-        // treat it as "desynced" (time: 0) for the UI.
-        // This is necessary because formatLyricsToLRC uses the line start
-        // as a placeholder to keep words separate.
         const effectiveTime = sTime === start ? 0 : sTime;
-        
         syllables.push({ time: effectiveTime, text: sText });
       }
 
@@ -106,14 +130,36 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
         text: plainText,
         syllables: syllables.length > 0 ? syllables : undefined,
         position,
+        speaker,
+        isBackground,
       });
     } else if (line.trim()) {
       // Handle plain text line
+      let text = line.trim();
+      
+      // Try to parse speaker/bg even in plain text
+      let speaker: string | undefined;
+      let isBackground = false;
+      
+      const bgMatch = text.match(backgroundRegex);
+      if (bgMatch) {
+        isBackground = true;
+        text = bgMatch[1].trim();
+      }
+      
+      const speakerMatch = text.match(speakerRegex);
+      if (speakerMatch) {
+        speaker = speakerMatch[1];
+        text = speakerMatch[2].trim();
+      }
+
       lyrics.push({
         id: Math.random().toString(36).substr(2, 9),
-        start: -1, // Use -1 to indicate unsynced
+        start: -1,
         end: null,
-        text: line.trim(),
+        text,
+        speaker,
+        isBackground,
       });
     }
   });

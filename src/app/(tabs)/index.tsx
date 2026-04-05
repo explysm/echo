@@ -158,7 +158,7 @@ export default function EditorScreen() {
 
   // Lyrics state
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  const hasEnhancedFeatures = lyrics.some(l => l.speaker || l.background);
+  const hasEnhancedFeatures = lyrics.some(l => l.speaker || l.isBackground);
   const [rawLRC, setRawLRC] = useState('');
   const [history, setHistory] = useState<string[]>(['']);
   const [historyIndex, setHistoryIndex] = useState(0);
