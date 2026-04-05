@@ -635,14 +635,19 @@ export default function EditorScreen() {
         return;
       }
       
-      // If no unsynced lines, default to creating a new one (old behavior)
-      // but without pausing if we want it to be "one press"
-      setEditingLineId(null);
-      setPendingText('');
-      setSyncState('capturing_start');
-      setCurrentLineStart(position);
-      // Immediately show text input for a NEW line if none are left to sync
-      setShowTextInput(true);
+      // If no unsynced lines, we need to add a new one.
+      // For "one press", we follow the normal flow but skip the pause.
+      if (syncState === 'idle') {
+        setSyncState('capturing_start');
+        setCurrentLineStart(position);
+        triggerHaptic('light');
+      } else if (syncState === 'capturing_start') {
+        setSyncState('capturing_end');
+        setEditingLineId(null);
+        setPendingText('');
+        setShowTextInput(true);
+        triggerHaptic('medium');
+      }
       return;
     }
 
@@ -1282,16 +1287,25 @@ export default function EditorScreen() {
       <Modal visible={showTextInput} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={70} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} experimentalBlurMethod="none" />
           )}
           <View style={[
             styles.modalContent, 
             { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 },
             enableFancyAnimations && { backgroundColor: theme.background + 'CC' }
           ]}>
-            <Text style={styles.modalTitle}>
-              {editingLineId ? 'Edit Lyric' : 'Enter Lyric Text'}
-            </Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingLineId ? 'Edit Lyric' : 'Enter Lyric Text'}
+              </Text>
+              <TouchableOpacity onPress={() => {
+                setShowTextInput(false);
+                setSyncState('idle');
+                setEditingLineId(null);
+              }}>
+                <X color={theme.text} size={24} />
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[styles.textInput, { color: theme.text, borderColor: theme.border }]}
               value={pendingText}
@@ -1327,17 +1341,25 @@ export default function EditorScreen() {
       <Modal visible={showShareModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={70} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} experimentalBlurMethod="none" />
           )}
           <View style={[
             styles.modalContent, 
             { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 },
             enableFancyAnimations && { backgroundColor: theme.background + 'CC' }
           ]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Share & Export</Text>
+              <TouchableOpacity onPress={() => {
+                setShowShareModal(false);
+                setShareStep('options');
+              }}>
+                <X color={theme.text} size={24} />
+              </TouchableOpacity>
+            </View>
+
             {shareStep === 'options' ? (
               <>
-                <Text style={styles.modalTitle}>Share & Export</Text>
-                
                 <TouchableOpacity 
                   style={[styles.shareOption, { borderColor: theme.border }]}
                   onPress={() => setShareStep('lrclib')}
@@ -1496,7 +1518,7 @@ export default function EditorScreen() {
       <Modal visible={showAutofillModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={70} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} experimentalBlurMethod="none" />
           )}
           <View style={[
             styles.modalContent, 
@@ -1575,7 +1597,7 @@ export default function EditorScreen() {
       <Modal visible={showRateModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={70} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} experimentalBlurMethod="none" />
           )}
           <View style={[
             styles.modalContent, 
@@ -1649,7 +1671,7 @@ export default function EditorScreen() {
       <Modal visible={showSearchModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={70} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} experimentalBlurMethod="none" />
           )}
           <View style={[
             styles.modalContent, 
@@ -1727,7 +1749,7 @@ export default function EditorScreen() {
       <Modal visible={showWebView} transparent animationType="slide">
         <View style={styles.webViewOverlay}>
           {enableFancyAnimations && Platform.OS !== 'web' && (
-            <BlurView intensity={25} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={70} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} experimentalBlurMethod="none" />
           )}
           <View style={[
             styles.webViewHeader, 
@@ -2106,8 +2128,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    flex: 1,
   },
   modalSubtitle: {
     fontSize: 14,
@@ -2117,8 +2138,9 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
-    gap: 12,
+    width: '100%',
   },
   shareOption: {
     flexDirection: 'row',
