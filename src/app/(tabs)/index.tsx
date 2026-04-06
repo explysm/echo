@@ -630,7 +630,12 @@ export default function EditorScreen() {
         };
         
         // Recalculate end times
-        updatedLyrics.sort((a, b) => a.start - b.start);
+        updatedLyrics.sort((a, b) => {
+          if (a.start < 0 && b.start < 0) return 0;
+          if (a.start < 0) return 1;
+          if (b.start < 0) return -1;
+          return a.start - b.start;
+        });
         for (let i = 0; i < updatedLyrics.length - 1; i++) {
           updatedLyrics[i].end = updatedLyrics[i + 1].start;
         }
@@ -638,6 +643,7 @@ export default function EditorScreen() {
         isInternalUpdate.current = true;
         setLyrics(updatedLyrics);
         setRawLRC(formatLyricsToLRC(updatedLyrics));
+        setSyncState('idle');
         return;
       }
       
@@ -679,13 +685,19 @@ export default function EditorScreen() {
       const updatedLyrics = lyrics.map(l => 
         l.id === line.id ? { ...l, start: position } : l
       );
-      updatedLyrics.sort((a, b) => a.start - b.start);
+      updatedLyrics.sort((a, b) => {
+        if (a.start < 0 && b.start < 0) return 0;
+        if (a.start < 0) return 1;
+        if (b.start < 0) return -1;
+        return a.start - b.start;
+      });
       for (let i = 0; i < updatedLyrics.length - 1; i++) {
         updatedLyrics[i].end = updatedLyrics[i + 1].start;
       }
       isInternalUpdate.current = true;
       setLyrics(updatedLyrics);
       setRawLRC(formatLyricsToLRC(updatedLyrics));
+      setSyncState('idle');
       return;
     }
     setEditingLineId(line.id);
@@ -711,7 +723,12 @@ export default function EditorScreen() {
       updatedLyrics.push(newLine);
     }
     
-    updatedLyrics.sort((a, b) => a.start - b.start);
+    updatedLyrics.sort((a, b) => {
+      if (a.start < 0 && b.start < 0) return 0;
+      if (a.start < 0) return 1;
+      if (b.start < 0) return -1;
+      return a.start - b.start;
+    });
     isInternalUpdate.current = true;
     setLyrics(updatedLyrics);
     setRawLRC(formatLyricsToLRC(updatedLyrics));
@@ -996,7 +1013,7 @@ export default function EditorScreen() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [sound, position, syncState, isPlaying, pauseOnEnd, rewindAmount]);
+  }, [sound, position, syncState, isPlaying, pauseOnEnd, rewindAmount, onePressSync]);
 
   const handlePublish = async () => {
     const trimmedTrack = trackName.trim();

@@ -16,8 +16,20 @@ export interface LyricLine {
 
 export function formatLyricsToLRC(lyrics: LyricLine[]): string {
   return lyrics
-    .filter(line => line.start >= 0)
     .map((line) => {
+      if (line.start < 0) {
+        let content = '';
+        if (line.speaker) {
+          content += `${line.speaker}: `;
+        }
+        if (line.isBackground) {
+          content += `[bg:${line.text.trim()}]`;
+        } else {
+          content += line.text.trim();
+        }
+        return content;
+      }
+
       const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
@@ -168,7 +180,12 @@ export function parseLRCToLyrics(lrc: string): LyricLine[] {
     }
   });
 
-  lyrics.sort((a, b) => a.start - b.start);
+  lyrics.sort((a, b) => {
+    if (a.start < 0 && b.start < 0) return 0;
+    if (a.start < 0) return 1;
+    if (b.start < 0) return -1;
+    return a.start - b.start;
+  });
   for (let i = 0; i < lyrics.length - 1; i++) {
     lyrics[i].end = lyrics[i + 1].start;
   }
