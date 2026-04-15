@@ -1,3 +1,5 @@
+ECHO IS CURRENTLY NOT BEING MAINTAINED. WILL WORK ON IT IN A FEW WEEKS WHEN I REGAIN INTEREST. 
+
 # Echo - Minimalist Lyric Editor
 
 <div style="background: #222; color: #ff4444; padding: 16px; border-radius: 8px; margin: 16px 0; text-align: center; font-weight: bold; border: 2px solid #ff4444;">
