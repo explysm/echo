@@ -1,20 +1,22 @@
-import { ACCENT_COLORS, PRESET_PALETTES, AccentKey, CustomTheme } from '@/constants/Theme';
+import { ACCENT_COLORS, AccentKey, CustomTheme } from '@/constants/Theme';
+import { PRESET_PALETTES } from './Palettes';
 
 /**
  * Generates the theme color palette based on the selected accent and custom theme settings.
  */
 export const getThemeColors = (accentKey: AccentKey = 'purple', customTheme?: CustomTheme) => {
   // Check if we are using a preset palette
-  if (accentKey in PRESET_PALETTES) {
-    const palette = PRESET_PALETTES[accentKey as keyof typeof PRESET_PALETTES];
+  const palettes: any = PRESET_PALETTES || {};
+  if (accentKey && palettes[accentKey]) {
+    const palette = palettes[accentKey];
     const themeColors = {
-      text: palette.text,
-      background: palette.background,
-      tint: palette.tint,
-      tabIconDefault: palette.secondaryText,
-      tabIconSelected: palette.tint,
-      border: palette.secondaryText + '33', // 20% opacity
-      secondaryText: palette.secondaryText,
+      text: palette.text || '#000',
+      background: palette.background || '#fff',
+      tint: palette.tint || '#000',
+      tabIconDefault: palette.secondaryText || '#888',
+      tabIconSelected: palette.tint || '#000',
+      border: (palette.secondaryText || '#888') + '33', // 20% opacity
+      secondaryText: palette.secondaryText || '#888',
     };
     return {
       light: themeColors,

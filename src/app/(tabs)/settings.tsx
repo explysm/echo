@@ -14,7 +14,8 @@ const ActualColorPicker: any = (ColorPicker as any).ColorPicker || ColorPicker;
 
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
-import { ACCENT_COLORS, PRESET_PALETTES, CustomTheme } from '@/constants/Theme';
+import { ACCENT_COLORS, CustomTheme } from '@/constants/Theme';
+import { PRESET_PALETTES } from '@/constants/Palettes';
 
 // --- Sub-components to isolate state and prevent re-renders during color picking ---
 
@@ -362,7 +363,7 @@ export default function SettingsScreen() {
 
         <Text style={[styles.label, { marginTop: 20, color: themeColors.secondaryText }]}>Preset Themes</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetRow}>
-          {(Object.keys(PRESET_PALETTES) as (keyof typeof PRESET_PALETTES)[]).map((key) => (
+          {PRESET_PALETTES && (Object.keys(PRESET_PALETTES) as (keyof typeof PRESET_PALETTES)[]).map((key) => (
             <TouchableOpacity
               key={key}
               style={[
