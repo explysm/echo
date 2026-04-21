@@ -29,7 +29,10 @@ export default function TabLayout() {
 
 function TabLayoutContent() {
   const { colorScheme, accentKey, customTheme } = useAppSettings();
-  const theme = getThemeColors(accentKey, customTheme)[colorScheme];
+  const themeColors = getThemeColors(accentKey, customTheme);
+  const theme = themeColors[colorScheme] || themeColors.light || themeColors.dark;
+
+  if (!theme) return null; // Last resort safety
 
   return (
     <Tabs

@@ -102,10 +102,10 @@ export default function EditorScreen() {
   const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, desktopMode, onePressSync } = useAppSettings();
   const isDesktopBuild = process.env.EXPO_PUBLIC_DESKTOP === 'true';
 
-  const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [screenWidth, setScreenWidth] = useState(Platform.OS === 'web' ? window.innerWidth : 1024);
   
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (Platform.OS === 'web') {
       const handleResize = () => setScreenWidth(window.innerWidth);
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
