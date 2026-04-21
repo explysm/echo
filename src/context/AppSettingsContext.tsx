@@ -50,12 +50,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   
   const [isInitialized, setIsInitialized] = useState(false);
   const [theme, setThemeState] = useState<Theme>('system');
-  const [accentKey, setAccentKeyState] = useState<AccentKey>('slate');
+  const [accentKey, setAccentKeyState] = useState<AccentKey>('purple');
   const [customTheme, setCustomThemeState] = useState<CustomTheme>({
     background: '#ffffff',
-    text: '#000000',
-    secondaryText: '#666666',
-    tint: '#0f172a',
+    text: '#10002b',
+    secondaryText: '#5a189a',
+    tint: '#7b2cbf',
   });
   const [pauseOnEnd, setPauseOnEndState] = useState(true);
   const [rewindAmount, setRewindAmountState] = useState(1.5);

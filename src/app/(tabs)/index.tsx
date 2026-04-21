@@ -102,9 +102,6 @@ export default function EditorScreen() {
   const { colorScheme, pauseOnEnd, rewindAmount, enableFancyAnimations, desktopMode, onePressSync } = useAppSettings();
   const isDesktopBuild = process.env.EXPO_PUBLIC_DESKTOP === 'true';
 
-  useEffect(() => {
-    setSyncState('idle');
-  }, [onePressSync]);
   const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
   
   useEffect(() => {
@@ -274,6 +271,10 @@ export default function EditorScreen() {
   const [showTextInput, setShowTextInput] = useState(false);
   const [pendingText, setPendingText] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSyncState('idle');
+  }, [onePressSync]);
 
   // Share / Export state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -619,50 +620,46 @@ export default function EditorScreen() {
     triggerHaptic('light');
     
     if (onePressSync) {
+      const updatedLyrics = [...lyrics];
       // Find the first unsynced line (start < 0)
-      const firstUnsyncedIndex = lyrics.findIndex(l => l.start < 0);
-      
+      const firstUnsyncedIndex = updatedLyrics.findIndex(l => l.start < 0);
+
       if (firstUnsyncedIndex !== -1) {
-        const updatedLyrics = [...lyrics];
         updatedLyrics[firstUnsyncedIndex] = {
           ...updatedLyrics[firstUnsyncedIndex],
           start: position,
         };
-        
-        // Recalculate end times
-        updatedLyrics.sort((a, b) => {
-          if (a.start < 0 && b.start < 0) return 0;
-          if (a.start < 0) return 1;
-          if (b.start < 0) return -1;
-          return a.start - b.start;
-        });
-        for (let i = 0; i < updatedLyrics.length - 1; i++) {
+      } else {
+        // Create a new placeholder line
+        const newLine: LyricLine = {
+          id: Math.random().toString(36).substr(2, 9),
+          start: position,
+          end: null,
+          text: '...',
+        };
+        updatedLyrics.push(newLine);
+      }
+
+      // Recalculate end times and sort
+      updatedLyrics.sort((a, b) => {
+        if (a.start < 0 && b.start < 0) return 0;
+        if (a.start < 0) return 1;
+        if (b.start < 0) return -1;
+        return a.start - b.start;
+      });
+      for (let i = 0; i < updatedLyrics.length - 1; i++) {
+        if (updatedLyrics[i].start >= 0 && updatedLyrics[i+1].start >= 0) {
           updatedLyrics[i].end = updatedLyrics[i + 1].start;
         }
-        
-        isInternalUpdate.current = true;
-        setLyrics(updatedLyrics);
-        setRawLRC(formatLyricsToLRC(updatedLyrics));
-        setSyncState('idle');
-        return;
       }
-      
-      // If no unsynced lines, we need to add a new one.
-      // For "one press", we follow the normal flow but skip the pause.
-      if (syncState === 'idle') {
-        setSyncState('capturing_start');
-        setCurrentLineStart(position);
-        triggerHaptic('light');
-      } else if (syncState === 'capturing_start') {
-        setSyncState('capturing_end');
-        setEditingLineId(null);
-        setPendingText('');
-        setShowTextInput(true);
-        triggerHaptic('medium');
-      }
+
+      isInternalUpdate.current = true;
+      setLyrics(updatedLyrics);
+      setRawLRC(formatLyricsToLRC(updatedLyrics));
+      setSyncState('idle');
+      triggerHaptic('medium');
       return;
     }
-
     setEditingLineId(null);
     setPendingText('');
     if (syncState === 'idle') {
@@ -1271,10 +1268,9 @@ export default function EditorScreen() {
                   <TouchableOpacity onPress={() => nudgePosition(-1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
                     <Text style={[styles.nudgeText, { color: theme.secondaryText }]}>-1s</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                  <TouchableOpacity onPress={() => nudgePosition(-0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
                     <Text style={[styles.nudgeText, { color: theme.tint }]}>-0.5s</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
+                  </TouchableOpacity>                  <TouchableOpacity onPress={() => nudgePosition(0.5)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
                     <Text style={[styles.nudgeText, { color: theme.tint }]}>+0.5s</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => nudgePosition(1)} style={[styles.nudgeButton, { borderColor: theme.border }]}>
@@ -1913,7 +1909,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     borderWidth: 1,
-    minWidth: 44,
+    minWidth: 52,
   },
   nudgeText: {
     fontSize: 9,

@@ -1,10 +1,12 @@
 export const ACCENT_COLORS = {
-  slate: '#0f172a',
-  indigo: '#4f46e5',
+  purple: '#7b2cbf',
+  deep: '#3c096c',
+  lavender: '#c77dff',
+  electric: '#9d4edd',
+  lilac: '#e0aaff',
   rose: '#e11d48',
   amber: '#d97706',
   emerald: '#059669',
-  violet: '#7c3aed',
 };
 
 export type AccentKey = keyof typeof ACCENT_COLORS | 'custom';

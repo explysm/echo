@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Alert, Platform } from 'react-native';
-import { Moon, Sun, Monitor, Check, X, ChevronRight, ChevronLeft, Trash2, Sparkles, Palette, MonitorDot } from 'lucide-react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { StyleSheet, TouchableOpacity, TextInput, Modal, Alert, Platform } from 'react-native';
+import { Moon, Sun, Monitor, Check, X, ChevronRight, ChevronLeft, Trash2, Sparkles, Palette } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import ColorPicker, { HueCircular, Panel1, Preview, BrightnessSlider } from 'reanimated-color-picker';
-import { runOnJS } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withTiming, interpolateColor, runOnJS } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -188,6 +188,34 @@ function AccentPickerModal({
   );
 }
 
+function FlatSwitch({ value, onValueChange, themeColors }: { value: boolean, onValueChange: (v: boolean) => void, themeColors: any }) {
+  const trackStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: withTiming(value ? themeColors.tint : themeColors.border, { duration: 200 }),
+    };
+  }, [value, themeColors]);
+
+  const thumbStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ 
+        translateX: withTiming(value ? 20 : 2, { duration: 200 }) 
+      }],
+      backgroundColor: withTiming(value ? '#fff' : themeColors.text, { duration: 200 }),
+    };
+  }, [value, themeColors]);
+
+  return (
+    <TouchableOpacity 
+      activeOpacity={1}
+      onPress={() => onValueChange(!value)}
+    >
+      <Animated.View style={[styles.switchTrack, trackStyle]}>
+        <Animated.View style={[styles.switchThumb, thumbStyle]} />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 export default function SettingsScreen() {
   const { 
     theme, 
@@ -288,7 +316,7 @@ export default function SettingsScreen() {
             label="Dark"
             active={theme === 'dark'}
             onPress={() => setTheme('dark')}
-            icon={<Moon size={20} color={themeColors.background} />} // This seems wrong in original, corrected below
+            icon={<Moon size={20} color={theme === 'dark' ? themeColors.background : themeColors.text} />}
             themeColors={themeColors}
           />
           <ThemeButton
@@ -342,11 +370,10 @@ export default function SettingsScreen() {
               Immediately mark timestamps without pausing or showing a text modal. Best for syncing pre-written lyrics.
             </Text>
           </View>
-          <Switch
+          <FlatSwitch
             value={onePressSync}
             onValueChange={setOnePressSync}
-            trackColor={{ false: themeColors.border, true: themeColors.tint }}
-            thumbColor="#fff"
+            themeColors={themeColors}
           />
         </View>
 
@@ -358,11 +385,10 @@ export default function SettingsScreen() {
                 Automatically pause playback when you finish syncing a lyric line.
               </Text>
             </View>
-            <Switch
+            <FlatSwitch
               value={pauseOnEnd}
               onValueChange={setPauseOnEnd}
-              trackColor={{ false: themeColors.border, true: themeColors.tint }}
-              thumbColor="#fff"
+              themeColors={themeColors}
             />
           </View>
         )}
@@ -406,11 +432,10 @@ export default function SettingsScreen() {
               Enable smoother transitions and frosted glass effects (Experimental).
             </Text>
           </View>
-          <Switch
+          <FlatSwitch
             value={enableFancyAnimations}
             onValueChange={setEnableFancyAnimations}
-            trackColor={{ false: themeColors.border, true: themeColors.tint }}
-            thumbColor="#fff"
+            themeColors={themeColors}
           />
         </View>
 
@@ -419,17 +444,16 @@ export default function SettingsScreen() {
           <View style={{ flex: 1, backgroundColor: 'transparent' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={styles.settingLabel}>Desktop Layout</Text>
-              <MonitorDot size={14} color={themeColors.tint} />
+              <Monitor size={14} color={themeColors.tint} />
             </View>
             <Text style={[styles.hint, { color: themeColors.secondaryText, marginTop: 4 }]}>
               Redesigned layout with side-by-side editor and player. Best on wider screens.
             </Text>
           </View>
-          <Switch
+          <FlatSwitch
             value={desktopMode}
             onValueChange={setDesktopMode}
-            trackColor={{ false: themeColors.border, true: themeColors.tint }}
-            thumbColor="#fff"
+            themeColors={themeColors}
           />
         </View>
         )}
@@ -458,11 +482,10 @@ export default function SettingsScreen() {
               Show the welcome tutorial every time the app starts, regardless of completion progress.
             </Text>
           </View>
-          <Switch
+          <FlatSwitch
             value={alwaysShowTutorial}
             onValueChange={setAlwaysShowTutorial}
-            trackColor={{ false: themeColors.border, true: themeColors.tint }}
-            thumbColor="#fff"
+            themeColors={themeColors}
           />
         </View>
       </View>
@@ -472,24 +495,12 @@ export default function SettingsScreen() {
         <Text style={styles.aboutText}>
           Echo is a minimalist lyric editor for syncing and publishing lyrics to LRCLIB.
         </Text>
-        
-        <View style={[styles.featuresList, { backgroundColor: themeColors.background + '80', borderColor: themeColors.border }]}>
-          <Text style={[styles.featureTitle, { color: themeColors.tint }]}>Features</Text>
-          <Text style={styles.featureItem}>- LRC enhanced lyrics editor</Text>
-          <Text style={styles.featureItem}>- Syllable-level sync</Text>
-          <Text style={styles.featureItem}>- Audio playback with nudge controls</Text>
-          <Text style={styles.featureItem}>- LRCLIB integration for publishing</Text>
-          <Text style={styles.featureItem}>- Export to LRC, SRT, VTT formats</Text>
-          <Text style={styles.featureItem}>- Drag & drop file support</Text>
-          <Text style={styles.featureItem}>- Dark/Light themes with custom accents</Text>
-          <Text style={styles.featureItem}>- Cross-platform (iOS, Android, Web, Desktop)</Text>
-        </View>
-        
-        <View style={[styles.versionBadge, { backgroundColor: themeColors.tint + '20', borderColor: themeColors.tint }]}>
-          <Text style={[styles.versionText, { color: themeColors.tint }]}>
-            Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.5'}
-          </Text>
-        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={[styles.versionText, { color: themeColors.secondaryText }]}>
+          Version {process.env.EXPO_PUBLIC_APP_VERSION || '1.0.5'}
+        </Text>
       </View>
 
       <CustomThemeModal 
@@ -623,10 +634,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'transparent',
+    gap: 16,
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   label: {
     fontSize: 14,
@@ -648,16 +660,34 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    marginTop: 8,
+    marginTop: 4,
     lineHeight: 18,
   },
   aboutText: {
     fontSize: 16,
     lineHeight: 24,
   },
-  version: {
+  footer: {
+    marginTop: 20,
+    marginBottom: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  versionText: {
     fontSize: 12,
-    marginTop: 10,
+    fontWeight: '500',
+  },
+  switchTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
   },
   modalOverlay: {
     flex: 1,
@@ -763,86 +793,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     marginTop: 10,
+    backgroundColor: '#ef444415',
   },
   eraseButtonText: {
-    fontWeight: 'bold',
-  },
-  selectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  selectButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  layoutOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 10,
-    gap: 16,
-  },
-  layoutOptionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  layoutOptionName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  layoutOptionDesc: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  smallButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  layoutPreview: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  featuresList: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 16,
-  },
-  featureTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  featureItem: {
-    fontSize: 13,
-    lineHeight: 22,
-  },
-  versionBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginTop: 16,
-  },
-  versionText: {
-    fontSize: 12,
     fontWeight: 'bold',
   },
 });
