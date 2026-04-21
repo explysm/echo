@@ -5,7 +5,11 @@ All notable changes to Echo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.6] - 2026-04-21
+
+### Added
+- 20+ new Preset Themes based on Uncodixify palettes (Midnight, Obsidian, Slate, Carbon, Cloud, etc.)
+- "Preset Themes" section in Appearance settings for quick theme selection
 
 ## [1.0.4.1-hotfix] - 2026-03-21
 ### Chore

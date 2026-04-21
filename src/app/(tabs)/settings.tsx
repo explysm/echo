@@ -14,7 +14,7 @@ const ActualColorPicker: any = (ColorPicker as any).ColorPicker || ColorPicker;
 
 import { Text, View, ScrollView, useTheme } from '@/components/Themed';
 import { useAppSettings } from '@/context/AppSettingsContext';
-import { ACCENT_COLORS, CustomTheme } from '@/constants/Theme';
+import { ACCENT_COLORS, PRESET_PALETTES, CustomTheme } from '@/constants/Theme';
 
 // --- Sub-components to isolate state and prevent re-renders during color picking ---
 
@@ -359,6 +359,26 @@ export default function SettingsScreen() {
             <Palette size={20} color={accentKey === 'custom' ? themeColors.background : themeColors.secondaryText} />
           </TouchableOpacity>
         </View>
+
+        <Text style={[styles.label, { marginTop: 20, color: themeColors.secondaryText }]}>Preset Themes</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetRow}>
+          {(Object.keys(PRESET_PALETTES) as (keyof typeof PRESET_PALETTES)[]).map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.presetButton,
+                { backgroundColor: PRESET_PALETTES[key].background, borderColor: PRESET_PALETTES[key].tint },
+                accentKey === key && { borderWidth: 3 }
+              ]}
+              onPress={() => setAccentKey(key)}
+            >
+              <View style={[styles.presetSwatch, { backgroundColor: PRESET_PALETTES[key].tint }]} />
+              <Text style={[styles.presetLabel, { color: PRESET_PALETTES[key].text }]}>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       <View style={styles.section}>
@@ -615,6 +635,29 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  presetRow: {
+    marginTop: 10,
+    backgroundColor: 'transparent',
+  },
+  presetButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+  },
+  presetSwatch: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  presetLabel: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   themeButton: {
     flex: 1,
